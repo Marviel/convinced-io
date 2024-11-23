@@ -39,6 +39,15 @@ export function moveSystem(world: World, { delta, currentTime, movement }: MoveS
                     entityMovement.dy = 0;
                 }
             }
+
+            if (entity.components.appearance) {
+                if (entityMovement.dx > 0) entity.components.appearance.direction = 'rt';
+                else if (entityMovement.dx < 0) entity.components.appearance.direction = 'lf';
+                else if (entityMovement.dy > 0) entity.components.appearance.direction = 'fr';
+                else if (entityMovement.dy < 0) entity.components.appearance.direction = 'bk';
+                
+                entity.components.appearance.isMoving = entityMovement.dx !== 0 || entityMovement.dy !== 0;
+            }
         }
     }
 } 

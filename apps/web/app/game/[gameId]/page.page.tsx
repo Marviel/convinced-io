@@ -29,6 +29,7 @@ const TILE_SIZE = 32;
 const MAP_SIZE = 50;
 const NUM_NPCS = 20;
 const INTERACTION_RADIUS = 5; // 5 tiles radius
+const AVAILABLE_SPRITES = ['syb1', 'spd1', 'thf2']; // Add all your available sprite base names
 
 const GameContainer = styled('div')({
     width: '100vw',
@@ -78,12 +79,17 @@ export default function GameRoom() {
             type: 'player',
             components: {
                 position: { x: 25, y: 25 },
-                appearance: { color: '#0077be' },
+                appearance: {
+                    color: '#0077be', // Fallback color
+                    sprite: AVAILABLE_SPRITES[Math.floor(Math.random() * AVAILABLE_SPRITES.length)],
+                    direction: 'fr',
+                    isMoving: false
+                },
                 movement: {
                     dx: 0,
                     dy: 0,
                     speed: 1,
-                    moveInterval: 100  // Can move every 100ms (10 times per second)
+                    moveInterval: 100
                 },
                 collision: { solid: true },
                 interactable: { radius: INTERACTION_RADIUS },
@@ -92,7 +98,7 @@ export default function GameRoom() {
         world.addEntity(player);
         playerRef.current = player;
 
-        // Create structures
+        // Create structures (logs)
         for (let y = 0; y < MAP_SIZE; y++) {
             for (let x = 0; x < MAP_SIZE; x++) {
                 if (Math.random() < 0.1) {
@@ -101,7 +107,10 @@ export default function GameRoom() {
                         type: 'structure',
                         components: {
                             position: { x, y },
-                            appearance: { color: '#8b4513' },
+                            appearance: { 
+                                structure: true,
+                                structureNumber: 1 + Math.floor(Math.random() * 8)
+                            },
                             collision: { solid: true },
                         },
                     };
@@ -125,7 +134,12 @@ export default function GameRoom() {
                 type: 'npc',
                 components: {
                     position: { x, y },
-                    appearance: { color: `hsl(${Math.random() * 360}, 70%, 50%)` },
+                    appearance: {
+                        color: `hsl(${Math.random() * 360}, 70%, 50%)`, // Fallback color
+                        sprite: AVAILABLE_SPRITES[Math.floor(Math.random() * AVAILABLE_SPRITES.length)],
+                        direction: ['fr', 'bk', 'lf', 'rt'][Math.floor(Math.random() * 4)] as 'fr' | 'bk' | 'lf' | 'rt',
+                        isMoving: false
+                    },
                     movement: {
                         dx: 0,
                         dy: 0,

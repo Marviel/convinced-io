@@ -14,7 +14,12 @@ export interface Movement {
 }
 
 export interface Appearance {
-    color: string;
+    color?: string;
+    sprite?: string;
+    direction?: 'fr' | 'bk' | 'lf' | 'rt';
+    isMoving?: boolean;
+    structure?: boolean;
+    structureNumber?: number;
     highlighted?: boolean;
 }
 
@@ -47,6 +52,12 @@ export interface Speech {
     message: string;
     expiryTime: number;
     isThinking?: boolean;
+}
+
+export interface PathfindingComponent {
+    targetPosition?: { x: number; y: number };
+    currentPath?: { x: number; y: number }[];
+    pathIndex?: number;
 }
 
 export type ComponentTypes = {

@@ -47,33 +47,19 @@ CREATE TYPE terrain_type AS ENUM ('grass', 'forest', 'mountain', 'lake', 'desert
 -- Tables
 --
 
--- Users table (extends Supabase auth.users)
-CREATE TABLE users (
-    id text DEFAULT generate_typed_uuid('user') PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
-    created_date TIMESTAMPTZ DEFAULT now() NOT NULL,
-    updated_date TIMESTAMPTZ DEFAULT now() NOT NULL,
-    CONSTRAINT users__id__check_prefix CHECK (is_valid_typed_uuid('user', id))
-);
-
-COMMENT ON TABLE users IS 'Extended user profiles for the game';
-COMMENT ON COLUMN users.id IS 'The unique identifier for the user';
-COMMENT ON COLUMN users.username IS 'The user''s display name';
-
 -- Game rooms
 CREATE TABLE game_rooms (
     id text DEFAULT generate_typed_uuid('game') PRIMARY KEY,
     _name TEXT NOT NULL,
-    created_by text REFERENCES users(id),
-    map_seed TEXT NOT NULL,
-    map_width INTEGER NOT NULL,
-    map_height INTEGER NOT NULL,
-    is_public BOOLEAN DEFAULT false,
+    created_by uuid REFERENCES auth.users(id),
+    is_public BOOLEAN DEFAULT true,
     max_players INTEGER DEFAULT 4,
+    current_players INTEGER DEFAULT 1,
+    status TEXT DEFAULT 'waiting',
     created_date TIMESTAMPTZ DEFAULT now() NOT NULL,
     updated_date TIMESTAMPTZ DEFAULT now() NOT NULL,
     ended_date TIMESTAMPTZ,
-    winner_id text REFERENCES users(id),
+    winner_id uuid REFERENCES auth.users(id),
     CONSTRAINT game_rooms__id__check_prefix CHECK (is_valid_typed_uuid('game', id))
 );
 
@@ -83,8 +69,12 @@ COMMENT ON COLUMN game_rooms._name IS 'The name of the game room';
 -- Game participants
 CREATE TABLE game_participants (
     game_room_id text REFERENCES game_rooms(id) ON DELETE CASCADE,
-    user_id text REFERENCES users(id),
+    user_id uuid REFERENCES auth.users(id),
+    is_host BOOLEAN DEFAULT false,
+    display_name TEXT NOT NULL,
     is_spectator BOOLEAN DEFAULT false,
+    is_ready BOOLEAN DEFAULT false,
+    sprite_name TEXT DEFAULT 'amg1',
     joined_date TIMESTAMPTZ DEFAULT now() NOT NULL,
     PRIMARY KEY (game_room_id, user_id)
 );
@@ -103,7 +93,7 @@ CREATE TABLE npcs (
     position_x INTEGER NOT NULL,
     position_y INTEGER NOT NULL,
     current_action npc_action_type,
-    affiliated_player_id text REFERENCES users(id),
+    affiliated_player_id uuid REFERENCES auth.users(id),
     created_date TIMESTAMPTZ DEFAULT now() NOT NULL,
     updated_date TIMESTAMPTZ DEFAULT now() NOT NULL,
     CONSTRAINT npcs__id__check_prefix CHECK (is_valid_typed_uuid('npc', id))
@@ -115,15 +105,9 @@ COMMENT ON COLUMN npcs.friendliness IS 'Tendency to help others (0-100)';
 COMMENT ON COLUMN npcs.loyalty IS 'Resistance to changing allegiance (0-100)';
 COMMENT ON COLUMN npcs.greed IS 'Priority on resource gathering (0-100)';
 
--- Additional tables continued...
--- (Remaining table definitions follow the same pattern)
-
 --
 -- Triggers
 --
-CREATE TRIGGER run_tgr_apply_audit
-    BEFORE UPDATE ON users
-    FOR EACH ROW EXECUTE FUNCTION tgr_apply_audit();
 
 CREATE TRIGGER run_tgr_apply_audit
     BEFORE UPDATE ON game_rooms
@@ -136,19 +120,9 @@ CREATE TRIGGER run_tgr_apply_audit
 --
 -- RLS Policies
 --
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE game_rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE game_participants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE npcs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE npc_memories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE structures ENABLE ROW LEVEL SECURITY;
-ALTER TABLE terrain ENABLE ROW LEVEL SECURITY;
-ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
-
--- Users policies
-CREATE POLICY "users ALL" ON users
-    FOR ALL USING (true)
-    WITH CHECK (true);
 
 -- Game rooms policies
 CREATE POLICY "game_rooms ALL" ON game_rooms
@@ -165,34 +139,11 @@ CREATE POLICY "npcs ALL" ON npcs
     FOR ALL USING (true)
     WITH CHECK (true);
 
--- NPC memories policies
-CREATE POLICY "npc_memories ALL" ON npc_memories
-    FOR ALL USING (true)
-    WITH CHECK (true);
-
--- Structures policies
-CREATE POLICY "structures ALL" ON structures
-    FOR ALL USING (true)
-    WITH CHECK (true);
-
--- Terrain policies
-CREATE POLICY "terrain ALL" ON terrain
-    FOR ALL USING (true)
-    WITH CHECK (true);
-
--- Chat messages policies
-CREATE POLICY "chat_messages ALL" ON chat_messages
-    FOR ALL USING (true)
-    WITH CHECK (true);
-
 --
 -- Indexes
 --
 CREATE INDEX idx_game_participants_user_id ON game_participants(user_id);
 CREATE INDEX idx_npcs_game_room ON npcs(game_room_id);
-CREATE INDEX idx_structures_game_room ON structures(game_room_id);
-CREATE INDEX idx_chat_messages_game_room ON chat_messages(game_room_id);
-CREATE INDEX idx_terrain_game_room ON terrain(game_room_id);
 
 --
 -- Grants

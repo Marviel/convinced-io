@@ -31,6 +31,12 @@ export interface AI {
     nextMoveTime: number;
 }
 
+export interface PathfindingComponent {
+    targetPosition?: { x: number; y: number };
+    currentPath?: { x: number; y: number }[];
+    pathIndex?: number;
+}
+
 export type ComponentTypes = {
     position: Position;
     movement: Movement;
@@ -38,6 +44,7 @@ export type ComponentTypes = {
     collision: Collision;
     ai: AI;
     interactable: Interactable;
+    pathfinding: PathfindingComponent;
 };
 
 export type ComponentType = keyof ComponentTypes;

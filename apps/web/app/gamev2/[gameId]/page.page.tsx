@@ -51,6 +51,19 @@ const canvasStyle: React.CSSProperties = {
     imageRendering: 'pixelated'
 };
 
+const inputStyle: React.CSSProperties = {
+    position: 'absolute',
+    bottom: '60px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    padding: '10px',
+    width: '300px',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    border: '1px solid #333',
+    borderRadius: '5px',
+    fontSize: '16px'
+};
+
 // Define the query for AI entities
 const aiQuery = defineQuery([AI, Position, Movement]);
 
@@ -63,6 +76,9 @@ export default function GamePage() {
     const worldRef = useRef<WorldManager | null>(null);
     const lastTimeRef = useRef<number>(0);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [showInput, setShowInput] = useState(false);
+    const [inputMessage, setInputMessage] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
 
     // Initialize game world
     useEffect(() => {
@@ -84,6 +100,22 @@ export default function GamePage() {
 
         const handleKeyDown = (e: KeyboardEvent) => {
             keys.add(e.key.toLowerCase());
+
+            console.log(e.code);
+            // Handle spacebar for chat
+            if (e.code === 'Space' && !showInput) {
+                e.preventDefault();
+                setShowInput(true);
+                setTimeout(() => {
+                    inputRef.current?.focus();
+                }, 0);
+            }
+
+            // Handle escape to close input
+            if (e.code === 'Escape' && showInput) {
+                setShowInput(false);
+                setInputMessage('');
+            }
         };
 
         const handleKeyUp = (e: KeyboardEvent) => {
@@ -140,7 +172,7 @@ export default function GamePage() {
             window.removeEventListener('keyup', handleKeyUp);
             cancelAnimationFrame(animationFrameId);
         };
-    }, [isLoaded]);
+    }, [isLoaded, showInput]);
 
     // Handle resize
     useEffect(() => {
@@ -241,7 +273,7 @@ export default function GamePage() {
                         },
                         required: ['message'],
                     },
-                    prompt: "Generate a funny message that tries to convince nearby NPCs to go in one of the four cardinal directions.",
+                    prompt: "Pick a cardinal direction -- then, generate a 1 sentence message to convince nearby NPCs to go that way.",
                 }),
             });
 
@@ -249,6 +281,15 @@ export default function GamePage() {
             handlePlayerSpeak(result.message);
         } catch (error) {
             console.error('Error generating message:', error);
+        }
+    };
+
+    const handleInputSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (inputMessage.trim()) {
+            handlePlayerSpeak(inputMessage);
+            setInputMessage('');
+            setShowInput(false);
         }
     };
 
@@ -263,6 +304,19 @@ export default function GamePage() {
                     ref={canvasRef}
                     style={canvasStyle}
                 />
+                {showInput && (
+                    <form onSubmit={handleInputSubmit}>
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={inputMessage}
+                            onChange={(e) => setInputMessage(e.target.value)}
+                            style={inputStyle}
+                            placeholder="Type your message..."
+                            autoFocus
+                        />
+                    </form>
+                )}
                 <button
                     onClick={handleGenerate}
                     style={{

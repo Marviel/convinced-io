@@ -19,6 +19,82 @@ const THINKING_TIME = 2000; // Time to process a message in ms
 // Define query for AI entities
 const aiQuery = defineQuery([AI, Position, Movement, Pathfinding]);
 
+function getTerrainMap(world: WorldManager, centerX: number, centerY: number, radius: number = 5): string {
+    let map = '';
+    for (let y = centerY - radius; y <= centerY + radius; y++) {
+        for (let x = centerX - radius; x <= centerX + radius; x++) {
+            if (x === centerX && y === centerY) {
+                map += '@'; // NPC position
+            } else if (x < 0 || x >= world.width || y < 0 || y >= world.height) {
+                map += '#'; // Out of bounds
+            } else if (world.isPositionOccupied(x, y)) {
+                map += 'X'; // Obstacle
+            } else {
+                map += '.'; // Empty space
+            }
+        }
+        map += '\n';
+    }
+    return map;
+}
+
+async function processMessage(
+    world: WorldManager,
+    eid: number,
+    personality: string,
+    message: string
+): Promise<{
+    message: string;
+    destinationChange: { x: number; y: number; } | null;
+}> {
+    try {
+        const npcX = Position.x[eid] ?? 0;
+        const npcY = Position.y[eid] ?? 0;
+        const terrainMap = getTerrainMap(world, npcX, npcY);
+
+        const response = await fetch('/api/genObject', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                schema: {
+                    type: 'object',
+                    properties: {
+                        message: { type: 'string' },
+                        destinationChange: {
+                            type: ['object', 'null'],
+                            properties: {
+                                x: { type: 'number' },
+                                y: { type: 'number' }
+                            },
+                            required: ['x', 'y']
+                        }
+                    },
+                    required: ['message', 'destinationChange']
+                },
+                prompt: `You are an NPC with the following personality: ${personality}.
+                        You are currently at position (${npcX}, ${npcY}).
+                        Here is a map of your surroundings (@ is you, X is obstacle, . is empty space):
+                        ${terrainMap}
+                        Someone just told you: "${message}".
+                        How do you respond, and does this make you want to change where you're going?
+                        If you decide to change destination, ensure coordinates are within 0-${world.width}.
+                        Consider the terrain - try to pick a destination that seems reachable.`,
+            }),
+        });
+
+        const result = await response.json();
+        return result;
+    } catch (error) {
+        console.error('Error processing message:', error);
+        return {
+            message: "Hmm... interesting.",
+            destinationChange: null
+        };
+    }
+}
+
 async function generateMessage(): Promise<string> {
     try {
         const response = await fetch('/api/genObject', {
@@ -44,50 +120,6 @@ async function generateMessage(): Promise<string> {
     } catch (error) {
         console.error('Error generating message:', error);
         return "I made it!"; // Fallback message
-    }
-}
-
-async function processMessage(personality: string, message: string): Promise<{
-    message: string;
-    destinationChange: { x: number; y: number; } | null;
-}> {
-    try {
-        const response = await fetch('/api/genObject', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                schema: {
-                    type: 'object',
-                    properties: {
-                        message: { type: 'string' },
-                        destinationChange: {
-                            type: ['object', 'null'],
-                            properties: {
-                                x: { type: 'number' },
-                                y: { type: 'number' }
-                            },
-                            required: ['x', 'y']
-                        }
-                    },
-                    required: ['message', 'destinationChange']
-                },
-                prompt: `You are an NPC with the following personality: ${personality}. 
-                        Someone just told you: "${message}". 
-                        How do you respond, and does this make you want to change where you're going?
-                        If you decide to change destination, ensure coordinates are within 0-50.`,
-            }),
-        });
-
-        const result = await response.json();
-        return result;
-    } catch (error) {
-        console.error('Error processing message:', error);
-        return {
-            message: "Hmm... interesting.",
-            destinationChange: null
-        };
     }
 }
 
@@ -122,10 +154,10 @@ export function aiSystem(world: WorldManager, currentTime: number) {
 
             // After thinking time, process message
             if (currentTime - AI.processingStartTime[eid] >= THINKING_TIME) {
-                const personality = world.personalityPool[AI.personalityIndex[eid]] || "A friendly NPC";
-                const message = world.getMessage(AI.processingMessageIndex[eid]) || "";
+                const personality = world.personalityPool[AI.personalityIndex[eid] ?? 0] || "A friendly NPC";
+                const message = world.getMessage(AI.processingMessageIndex[eid] ?? 0) || "";
 
-                processMessage(personality, message).then(response => {
+                processMessage(world, eid, personality, message).then(response => {
                     const responseMessageIndex = world.addMessage(response.message);
 
                     if (!hasComponent(world.world, Speech, eid)) {

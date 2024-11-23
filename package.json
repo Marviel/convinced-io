@@ -3,7 +3,9 @@
   "private": true,
   "scripts": {
     "build": "turbo build",
-    "dev": "turbo dev",
+    "dev": "concurrently -c \"bgBlue.bold,bgGreen.bold\" -n \"turbo,game-server\" -p \"[{name}]\" \"npm run turbo:dev\" \"npm run game-server:dev\"",
+    "turbo:dev": "turbo dev",
+    "game-server:dev": "cd bun_apps/game_server && bun run dev",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "sb": "supabase"
@@ -12,7 +14,8 @@
     "prettier": "^3.2.5",
     "turbo": "^2.3.1",
     "typescript": "5.5.4",
-    "supabase": "^1.223.10"
+    "supabase": "^1.223.10",
+    "concurrently": "9.1.0"
   },
   "engines": {
     "node": ">=18"

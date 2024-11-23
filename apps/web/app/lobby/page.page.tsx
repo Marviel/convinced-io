@@ -33,6 +33,7 @@ import Image from 'next/image'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import CheckIcon from '@mui/icons-material/Check'
 import { createClient } from '@supabase/supabase-js'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 
 const StyledContainer = styled(Container)({
   display: 'flex',
@@ -108,7 +109,7 @@ const StyledTextField = styled(TextField)({
 })
 
 interface GameSettings {
-  numNPCs: number;
+  num_npcs: number;
   difficulty: string;
 }
 
@@ -128,7 +129,7 @@ const supabase = createClient(
 
 export default function Lobby() {
   const [gameSettings, setGameSettings] = React.useState<GameSettings>({
-    numNPCs: 5,
+    num_npcs: 5,
     difficulty: 'medium'
   })
   const [selectedSprite, setSelectedSprite] = React.useState<string>(AVAILABLE_SPRITES[0] || '')
@@ -161,7 +162,7 @@ export default function Lobby() {
         if (gameError) throw gameError
 
         setGameSettings({
-          numNPCs: gameRoom.num_npcs || 5,
+          num_npcs: gameRoom.num_npcs || 5,
           difficulty: gameRoom.difficulty || 'medium'
         })
 
@@ -184,6 +185,11 @@ export default function Lobby() {
           setSelectedSprite(currentUserData.sprite_name)
           setIsReady(currentUserData.is_ready)
         }
+
+        // If game has started, redirect to game
+        if (gameRoom.status === 'in_progress') {
+          router.push(`/game/${gameId}`)
+        }
       } catch (error) {
         console.error('Error fetching game data:', error)
       } finally {
@@ -191,39 +197,65 @@ export default function Lobby() {
       }
     }
 
+    // Initial fetch
     fetchGameData()
 
     // Set up real-time subscriptions
-    const participantsSubscription = supabase
-      .channel('game_participants_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'game_participants',
-          filter: `game_room_id=eq.${gameId}`
-        },
-        () => {
-          fetchGameData()
-        }
-      )
-      .subscribe()
+    // const participantsSubscription = supabase
+    //   .channel('game_participants_changes')
+    //   .on(
+    //     'postgres_changes',
+    //     {
+    //       event: '*',
+    //       schema: 'public',
+    //       table: 'game_participants',
+    //       filter: `game_room_id=eq.${gameId}`
+    //     },
+    //     () => {
+    //       fetchGameData()
+    //     }
+    //   )
+    //   .subscribe()
+    // Set up polling interval
+    // const gameRoomSubscription = supabase
+    //   .channel('game_room_changes')
+    //   .on(
+    //     'postgres_changes',
+    //     {
+    //       event: '*',
+    //       schema: 'public',
+    //       table: 'game_rooms',
+    //       filter: `id=eq.${gameId}`
+    //     },
+    //     () => {
+    //       fetchGameData()
+    //     }
+    //   )
+    //   .subscribe()
+    const interval = setInterval(fetchGameData, 1000)
 
-    return () => {
-      participantsSubscription.unsubscribe()
-    }
-  }, [gameId])
+    // return () => {
+    //   participantsSubscription.unsubscribe()
+    //   gameRoomSubscription.unsubscribe()
+    // }
+    // Cleanup
+    return () => clearInterval(interval)
+  }, [gameId, router])
 
   const handleSpriteChange = async (sprite: string) => {
-    if (!currentUser || !gameId) return
-
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session?.user?.id || !gameId) {
+        console.error('Error getting session:', sessionError)
+        return
+      }
+
       const { error } = await supabase
         .from('game_participants')
         .update({ sprite_name: sprite })
         .eq('game_room_id', gameId)
-        .eq('user_id', currentUser.id)
+        .eq('user_id', session.user.id)
 
       if (error) throw error
       setSelectedSprite(sprite)
@@ -233,17 +265,32 @@ export default function Lobby() {
   }
 
   const handleReadyToggle = async () => {
-    if (!currentUser || !gameId) return
-
     try {
-      console.log(currentUser.id)
-      const { error } = await supabase
+      // Get current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError) {
+        console.error('Error getting session:', sessionError)
+        return
+      }
+
+      if (!session?.user?.id || !gameId) {
+        console.error('No user session or game ID')
+        return
+      }
+
+      // Update ready status
+      const { error: updateError } = await supabase
         .from('game_participants')
         .update({ is_ready: !isReady })
         .eq('game_room_id', gameId)
-        .eq('user_id', currentUser.id)
+        .eq('user_id', session.user.id)
 
-      if (error) throw error
+      if (updateError) {
+        console.error('Error updating ready status:', updateError)
+        return
+      }
+
       setIsReady(!isReady)
     } catch (error) {
       console.error('Error updating ready status:', error)
@@ -251,9 +298,27 @@ export default function Lobby() {
   }
 
   const handleSettingsChange = async (settings: Partial<GameSettings>) => {
-    if (!currentUser?.is_host || !gameId) return
-
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session?.user?.id || !gameId) {
+        console.error('Error getting session:', sessionError)
+        return
+      }
+
+      // Verify user is host
+      const { data: participant, error: participantError } = await supabase
+        .from('game_participants')
+        .select('is_host')
+        .eq('game_room_id', gameId)
+        .eq('user_id', session.user.id)
+        .single()
+
+      if (participantError || !participant?.is_host) {
+        console.error('User is not host')
+        return
+      }
+
       const { error } = await supabase
         .from('game_rooms')
         .update(settings)
@@ -267,18 +332,45 @@ export default function Lobby() {
   }
 
   const handleStartGame = async () => {
-    if (!currentUser?.is_host || !gameId) return
-
-    const allPlayersReady = players
-      .filter(p => !p.is_spectator && !p.is_host)
-      .every(p => p.is_ready)
-
-    if (!allPlayersReady) {
-      alert('All players must be ready to start the game')
-      return
-    }
-
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session?.user?.id || !gameId) {
+        console.error('Error getting session:', sessionError)
+        return
+      }
+
+      // Verify user is host
+      const { data: participant, error: participantError } = await supabase
+        .from('game_participants')
+        .select('is_host')
+        .eq('game_room_id', gameId)
+        .eq('user_id', session.user.id)
+        .single()
+
+      if (participantError || !participant?.is_host) {
+        console.error('User is not host')
+        return
+      }
+
+      // Check if all players are ready
+      const { data: players, error: playersError } = await supabase
+        .from('game_participants')
+        .select('*')
+        .eq('game_room_id', gameId)
+        .eq('is_spectator', false)
+
+      if (playersError) throw playersError
+
+      const allPlayersReady = players
+        .filter(p => !p.is_host)
+        .every(p => p.is_ready)
+
+      if (!allPlayersReady) {
+        alert('All players must be ready to start the game')
+        return
+      }
+
       const { error } = await supabase
         .from('game_rooms')
         .update({ status: 'in_progress' })
@@ -299,6 +391,112 @@ export default function Lobby() {
     }
   }
 
+  const handleLeaveLobby = async () => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session?.user?.id || !gameId) {
+        console.error('Error getting session:', sessionError)
+        return
+      }
+
+      // Remove participant
+      const { error: removeError } = await supabase
+        .from('game_participants')
+        .delete()
+        .eq('game_room_id', gameId)
+        .eq('user_id', session.user.id)
+
+      if (removeError) {
+        console.error('Error removing participant:', removeError)
+        return
+      }
+
+      // If user was not a spectator, decrease current_players count
+      if (!currentUser?.is_spectator) {
+        const { error: updateError } = await supabase
+          .from('game_rooms')
+          .update({ 
+            current_players: supabase.rpc('decrement_current_players', { game_room_id: gameId })
+          })
+          .eq('id', gameId)
+
+        if (updateError) {
+          console.error('Error updating player count:', updateError)
+        }
+      }
+
+      // If user was host, delete the game room
+      if (currentUser?.is_host) {
+        const { error: deleteError } = await supabase
+          .from('game_rooms')
+          .delete()
+          .eq('id', gameId)
+
+        if (deleteError) {
+          console.error('Error deleting game room:', deleteError)
+        }
+      }
+
+      router.push('/')
+    } catch (error) {
+      console.error('Error leaving lobby:', error)
+    }
+  }
+
+  const handleKickPlayer = async (userId: string) => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session?.user?.id || !gameId) {
+        console.error('Error getting session:', sessionError)
+        return
+      }
+
+      // Verify user is host
+      const { data: host, error: hostError } = await supabase
+        .from('game_participants')
+        .select('is_host')
+        .eq('game_room_id', gameId)
+        .eq('user_id', session.user.id)
+        .single()
+
+      if (hostError || !host?.is_host) {
+        console.error('User is not host')
+        return
+      }
+
+      // Remove participant
+      const { error: removeError } = await supabase
+        .from('game_participants')
+        .delete()
+        .eq('game_room_id', gameId)
+        .eq('user_id', userId)
+
+      if (removeError) {
+        console.error('Error kicking player:', removeError)
+        return
+      }
+
+      // Update player count if not a spectator
+      const kickedPlayer = players.find(p => p.id === userId)
+      if (kickedPlayer && !kickedPlayer.is_spectator) {
+        const { error: updateError } = await supabase
+          .from('game_rooms')
+          .update({ 
+            current_players: supabase.rpc('decrement_current_players', { game_room_id: gameId })
+          })
+          .eq('id', gameId)
+
+        if (updateError) {
+          console.error('Error updating player count:', updateError)
+        }
+      }
+    } catch (error) {
+      console.error('Error kicking player:', error)
+    }
+  }
+
   if (loading) {
     return <div>Loading...</div>
   }
@@ -311,6 +509,7 @@ export default function Lobby() {
 
       {gameId && (
         <Box 
+          component="span"
           sx={{ 
             display: 'flex', 
             alignItems: 'center', 
@@ -322,7 +521,7 @@ export default function Lobby() {
             width: 'fit-content'
           }}
         >
-          <Typography sx={{ color: '#fff' }}>
+          <Typography component="span" sx={{ color: '#fff' }}>
             Game ID: {gameId}
           </Typography>
           <Tooltip title={copied ? "Copied!" : "Copy Game ID"}>
@@ -373,26 +572,31 @@ export default function Lobby() {
           <Divider sx={{ my: 3, backgroundColor: '#333' }} />
 
           <Typography variant="h5" gutterBottom>
-            Game Settings {!currentUser?.is_host && '(Host Only)'}
+            Game Settings {!currentUser?.is_host && '(View Only)'}
           </Typography>
 
           <Box>
-            <Typography gutterBottom>Number of NPCs: {gameSettings.numNPCs}</Typography>
+            <Typography component="span" gutterBottom>
+              Number of NPCs: {gameSettings.num_npcs}
+            </Typography>
             <Slider
-              value={gameSettings.numNPCs}
-              onChange={(_, value) => handleSettingsChange({ numNPCs: value as number })}
+              value={gameSettings.num_npcs}
+              onChange={(_, value) => handleSettingsChange({ num_npcs: value as number })}
               disabled={!currentUser?.is_host}
               min={5}
               max={10}
               step={1}
               marks
               sx={{
-                color: '#1976d2',
+                color: currentUser?.is_host ? '#1976d2' : '#666',
                 '& .MuiSlider-mark': {
                   backgroundColor: '#666',
                 },
                 '& .MuiSlider-rail': {
                   backgroundColor: '#444',
+                },
+                '& .Mui-disabled': {
+                  color: '#666',
                 }
               }}
             />
@@ -403,8 +607,12 @@ export default function Lobby() {
             '& .MuiOutlinedInput-root': { 
               color: '#fff',
               '& fieldset': { borderColor: '#666' },
-              '&:hover fieldset': { borderColor: '#999' },
-              '&.Mui-focused fieldset': { borderColor: '#fff' },
+              '&:hover fieldset': { borderColor: currentUser?.is_host ? '#999' : '#666' },
+              '&.Mui-focused fieldset': { borderColor: currentUser?.is_host ? '#fff' : '#666' },
+              '&.Mui-disabled': {
+                color: '#fff',
+                '& fieldset': { borderColor: '#666' },
+              }
             }
           }}>
             <InputLabel>Difficulty</InputLabel>
@@ -433,54 +641,140 @@ export default function Lobby() {
               <ListItem>
                 <Typography sx={{ color: '#fff' }}>Loading players...</Typography>
               </ListItem>
-            ) : players.length === 0 ? (
-              <ListItem>
-                <Typography sx={{ color: '#fff' }}>No players in lobby</Typography>
-              </ListItem>
             ) : (
-              players.map((player) => (
-                <ListItem 
-                  key={player.id}
-                  sx={{
-                    backgroundColor: '#222',
-                    mb: 1,
-                    borderRadius: 1,
-                    '&:hover': {
-                      backgroundColor: '#333',
-                    }
-                  }}
-                >
-                  <ListItemAvatar>
-                    <Image
-                      src={`/assets/sprites/${player.sprite_name}_fr2.gif`}
-                      alt={player.sprite_name}
-                      width={32}
-                      height={32}
-                      style={{ imageRendering: 'pixelated' }}
-                    />
-                  </ListItemAvatar>
-                  <ListItemText 
-                    primary={player.display_name}
-                    secondary={
-                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        <Typography sx={{ color: player.is_ready ? '#4caf50' : '#ff9800' }}>
-                          {player.is_ready ? 'Ready' : 'Not Ready'} {player.is_host && '(Host)'}
-                        </Typography>
-                        {player.is_spectator && (
-                          <Chip 
-                            label="Spectator" 
-                            size="small"
+              <>
+                {/* Active Players */}
+                {players
+                  .filter(player => !player.is_spectator)
+                  .map((player) => (
+                    <ListItem 
+                      key={player.id}
+                      sx={{
+                        backgroundColor: '#222',
+                        mb: 1,
+                        borderRadius: 1,
+                        '&:hover': {
+                          backgroundColor: '#333',
+                        }
+                      }}
+                    >
+                      <ListItemAvatar>
+                        <Image
+                          src={`/assets/sprites/${player.sprite_name}_fr2.gif`}
+                          alt={player.sprite_name}
+                          width={32}
+                          height={32}
+                          style={{ imageRendering: 'pixelated' }}
+                        />
+                      </ListItemAvatar>
+                      <ListItemText 
+                        primary={
+                          <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {player.display_name}
+                            {player.is_host && (
+                              <Chip 
+                                component="span"
+                                label="Host" 
+                                size="small"
+                                sx={{ 
+                                  backgroundColor: '#1976d2',
+                                  color: '#fff'
+                                }} 
+                              />
+                            )}
+                          </Box>
+                        }
+                        secondary={
+                          <Typography
+                            component="span"
+                            sx={{ color: player.is_ready ? '#4caf50' : '#ff9800' }}
+                          >
+                            {player.is_ready ? 'Ready' : 'Not Ready'}
+                          </Typography>
+                        }
+                      />
+                      {currentUser?.is_host && !player.is_host && (
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          size="small"
+                          onClick={() => handleKickPlayer(player.id)}
+                          sx={{
+                            ml: 1,
+                            borderColor: '#d32f2f',
+                            color: '#d32f2f',
+                            '&:hover': {
+                              borderColor: '#f44336',
+                              backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                            }
+                          }}
+                        >
+                          Kick
+                        </Button>
+                      )}
+                    </ListItem>
+                  ))}
+
+                {/* Spectators Section */}
+                {players.some(player => player.is_spectator) && (
+                  <>
+                    <Typography component="span" variant="h6" sx={{ mt: 3, mb: 1, color: '#666' }}>
+                      Spectators
+                    </Typography>
+                    {players
+                      .filter(player => player.is_spectator)
+                      .map((spectator) => (
+                        <ListItem 
+                          key={spectator.id}
+                          sx={{
+                            backgroundColor: '#1a1a1a',
+                            mb: 1,
+                            borderRadius: 1,
+                            '&:hover': {
+                              backgroundColor: '#2a2a2a',
+                            }
+                          }}
+                        >
+                          <ListItemAvatar>
+                            <Avatar sx={{ backgroundColor: '#666' }}>
+                              <VisibilityIcon />
+                            </Avatar>
+                          </ListItemAvatar>
+                          <ListItemText 
+                            primary={spectator.display_name}
                             sx={{ 
-                              backgroundColor: '#666',
-                              color: '#fff'
-                            }} 
+                              '& .MuiListItemText-primary': { 
+                                color: '#999' 
+                              }
+                            }}
+                            primaryTypographyProps={{
+                              component: 'span'
+                            }}
                           />
-                        )}
-                      </Box>
-                    }
-                  />
-                </ListItem>
-              ))
+                          {currentUser?.is_host && (
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              size="small"
+                              onClick={() => handleKickPlayer(spectator.id)}
+                              sx={{
+                                ml: 1,
+                                borderColor: '#d32f2f',
+                                color: '#d32f2f',
+                                '&:hover': {
+                                  borderColor: '#f44336',
+                                  backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                                }
+                              }}
+                            >
+                              Kick
+                            </Button>
+                          )}
+                        </ListItem>
+                      ))}
+                  </>
+                )}
+              </>
             )}
           </List>
         </Box>
@@ -533,7 +827,7 @@ export default function Lobby() {
           )}
           <Button
             variant="outlined"
-            onClick={() => router.push('/')}
+            onClick={handleLeaveLobby}
             fullWidth
             sx={{
               py: 1.5,
@@ -554,9 +848,22 @@ export default function Lobby() {
         open={copied}
         autoHideDuration={2000}
         onClose={() => setCopied(false)}
-        message="Game ID copied to clipboard"
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      />
+        sx={{ position: 'fixed' }}
+      >
+        <Box
+          sx={{
+            backgroundColor: '#333',
+            color: '#fff',
+            padding: '6px 16px',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center'
+          }}
+        >
+          Game ID copied to clipboard
+        </Box>
+      </Snackbar>
     </StyledContainer>
   )
 } 

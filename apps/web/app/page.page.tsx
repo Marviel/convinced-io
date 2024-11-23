@@ -69,12 +69,14 @@ const StyledTextField = styled(TextField)({
   },
 })
 
-// Mock data for available games
-const mockGames = [
-  { id: '1', name: "Alice's Game", players: 2, maxPlayers: 4, status: 'Waiting', spectators: 1 },
-  { id: '2', name: "Bob's Adventure", players: 3, maxPlayers: 4, status: 'In Progress', spectators: 3 },
-  { id: '3', name: "Charlie's World", players: 1, maxPlayers: 4, status: 'Waiting', spectators: 0 },
-]
+interface Game {
+  id: string;
+  _name: string;
+  current_players: number;
+  max_players: number;
+  status: string;
+  spectators_count?: number;
+}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -97,10 +99,21 @@ const CreateGameDialog = ({ open, onClose, onSubmit }: CreateGameDialogProps) =>
     setDisplayName('')
   }
 
+  const handleClose = React.useCallback(() => {
+    setGameName('')
+    setDisplayName('')
+    onClose()
+  }, [onClose])
+
   return (
     <Dialog 
       open={open} 
-      onClose={onClose}
+      onClose={handleClose}
+      slotProps={{
+        backdrop: {
+          style: { backgroundColor: 'rgba(0, 0, 0, 0.8)' }
+        }
+      }}
       PaperProps={{
         sx: {
           backgroundColor: '#222',
@@ -128,7 +141,7 @@ const CreateGameDialog = ({ open, onClose, onSubmit }: CreateGameDialogProps) =>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
         <Button 
-          onClick={onClose}
+          onClick={handleClose}
           sx={{ color: '#fff' }}
         >
           Cancel
@@ -161,10 +174,21 @@ const JoinGameDialog = ({ open, onClose, onSubmit }: JoinGameDialogProps) => {
     setDisplayName('')
   }
 
+  const handleClose = React.useCallback(() => {
+    setGameId('')
+    setDisplayName('')
+    onClose()
+  }, [onClose])
+
   return (
     <Dialog 
       open={open} 
-      onClose={onClose}
+      onClose={handleClose}
+      slotProps={{
+        backdrop: {
+          style: { backgroundColor: 'rgba(0, 0, 0, 0.8)' }
+        }
+      }}
       PaperProps={{
         sx: {
           backgroundColor: '#222',
@@ -192,7 +216,7 @@ const JoinGameDialog = ({ open, onClose, onSubmit }: JoinGameDialogProps) => {
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
         <Button 
-          onClick={onClose}
+          onClick={handleClose}
           sx={{ color: '#fff' }}
         >
           Cancel
@@ -214,6 +238,91 @@ export default function Home() {
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false)
   const [joinDialogOpen, setJoinDialogOpen] = React.useState(false)
   const [gameCode, setGameCode] = React.useState('')
+  const [games, setGames] = React.useState<Game[]>([])
+  const [loading, setLoading] = React.useState(true)
+
+  // Fetch available games
+  React.useEffect(() => {
+    const fetchGames = async () => {
+      try {
+        // Get games with player and spectator counts
+        const { data: games, error } = await supabase
+          .from('game_rooms')
+          .select(`
+            id,
+            _name,
+            current_players,
+            max_players,
+            status,
+            spectators_count:game_participants!inner(count)
+          `)
+          .eq('is_public', true)
+          .eq('game_participants.is_spectator', true)
+          .order('created_date', { ascending: false })
+
+        if (error) {
+          console.error('Error fetching games:', error)
+          return
+        }
+
+        // Transform the data with proper type checking
+        const transformedGames = (games || []).map(game => ({
+          id: game.id,
+          _name: game._name,
+          current_players: game.current_players,
+          max_players: game.max_players,
+          status: game.status,
+          spectators_count: game.spectators_count[0]?.count || 0
+        }))
+
+        setGames(transformedGames)
+      } catch (error) {
+        console.error('Error:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchGames()
+
+    // Set up real-time subscription
+    // const gamesSubscription = supabase
+    //   .channel('game_rooms_changes')
+    //   .on(
+    //     'postgres_changes',
+    //     {
+    //       event: '*',
+    //       schema: 'public',
+    //       table: 'game_rooms'
+    //     },
+    //     () => {
+    //       fetchGames()
+    //     }
+    //   )
+    //   .subscribe()
+
+    // const participantsSubscription = supabase
+    //   .channel('game_participants_changes')
+    //   .on(
+    //     'postgres_changes',
+    //     {
+    //       event: '*',
+    //       schema: 'public',
+    //       table: 'game_participants'
+    //     },
+    //     () => {
+    //       fetchGames()
+    //     }
+    //   )
+    //   .subscribe()
+
+    // return () => {
+    //   gamesSubscription.unsubscribe()
+    //   participantsSubscription.unsubscribe()
+    // }
+    const interval = setInterval(fetchGames, 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   const handleCreateGame = async (gameName: string, displayName: string) => {
     try {
@@ -374,6 +483,14 @@ export default function Home() {
     }
   }
 
+  const handleCreateDialogClose = React.useCallback(() => {
+    setCreateDialogOpen(false)
+  }, [])
+
+  const handleJoinDialogClose = React.useCallback(() => {
+    setJoinDialogOpen(false)
+  }, [])
+
   return (
     <StyledContainer>
       <Typography variant="h2" component="h1" gutterBottom sx={{ color: '#fff' }}>
@@ -419,92 +536,110 @@ export default function Home() {
         </Typography>
 
         <List>
-          {mockGames.map((game) => (
-            <ListItem
-              key={game.id}
-              sx={{
-                backgroundColor: '#222',
-                mb: 1,
-                borderRadius: 1,
-                '&:hover': {
-                  backgroundColor: '#333',
-                }
-              }}
-            >
-              <ListItemAvatar>
-                <Avatar sx={{ backgroundColor: '#1976d2' }}>
-                  <GroupIcon />
-                </Avatar>
-              </ListItemAvatar>
-              <ListItemText
-                primary={game.name}
-                secondary={
-                  <Box sx={{ color: '#999', mt: 0.5 }}>
-                    <Typography component="span" sx={{ color: '#999' }}>
-                      Players: {game.players}/{game.maxPlayers}
-                    </Typography>
-                    <Chip
-                      label={game.status}
-                      size="small"
-                      sx={{
-                        ml: 1,
-                        backgroundColor: game.status === 'Waiting' ? '#4caf50' : '#ff9800',
-                        color: '#fff'
-                      }}
-                    />
-                    <Typography component="span" sx={{ ml: 1, color: '#999' }}>
-                      Spectators: {game.spectators}
-                    </Typography>
-                  </Box>
-                }
-              />
-              <ButtonGroup variant="outlined" size="small">
-                <Button
-                  onClick={() => handleJoinGame(game.id, `Player ${Math.floor(Math.random() * 1000)}`)}
-                  disabled={game.status === 'In Progress'}
-                  sx={{
-                    borderColor: '#666',
-                    color: '#fff',
-                    '&:hover': {
-                      borderColor: '#999',
-                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    },
-                    '&.Mui-disabled': {
-                      backgroundColor: '#333',
-                    }
-                  }}
-                >
-                  Join
-                </Button>
-                <Button
-                  onClick={() => handleSpectateGame(game.id)}
-                  startIcon={<VisibilityIcon />}
-                  sx={{
-                    borderColor: '#666',
-                    color: '#fff',
-                    '&:hover': {
-                      borderColor: '#999',
-                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    }
-                  }}
-                >
-                  Spectate
-                </Button>
-              </ButtonGroup>
+          {loading ? (
+            <ListItem>
+              <Typography sx={{ color: '#fff' }}>Loading games...</Typography>
             </ListItem>
-          ))}
+          ) : games.length === 0 ? (
+            <ListItem>
+              <Typography sx={{ color: '#fff' }}>No games available</Typography>
+            </ListItem>
+          ) : (
+            games.map((game) => (
+              <ListItem
+                key={game.id}
+                sx={{
+                  backgroundColor: '#222',
+                  mb: 1,
+                  borderRadius: 1,
+                  '&:hover': {
+                    backgroundColor: '#333',
+                  }
+                }}
+              >
+                <ListItemAvatar>
+                  <Avatar sx={{ backgroundColor: '#1976d2' }}>
+                    <GroupIcon />
+                  </Avatar>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={game._name}
+                  secondary={
+                    <Box
+                      component="span"
+                      sx={{ color: '#999', mt: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}
+                    >
+                      <Typography
+                        component="span"
+                        sx={{ color: '#999' }}
+                      >
+                        Players: {game.current_players}/{game.max_players}
+                      </Typography>
+                      <Chip
+                        label={game.status}
+                        size="small"
+                        sx={{
+                          backgroundColor: game.status === 'waiting' ? '#4caf50' : '#ff9800',
+                          color: '#fff'
+                        }}
+                      />
+                      <Typography
+                        component="span"
+                        sx={{ color: '#999' }}
+                      >
+                        Spectators: {game.spectators_count}
+                      </Typography>
+                    </Box>
+                  }
+                />
+                <ButtonGroup variant="outlined" size="small">
+                  <Button
+                    onClick={() => handleJoinGame(game.id, `Player ${Math.floor(Math.random() * 1000)}`)}
+                    disabled={game.status !== 'waiting' || game.current_players >= game.max_players}
+                    sx={{
+                      borderColor: '#666',
+                      color: '#fff',
+                      '&:hover': {
+                        borderColor: '#999',
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      },
+                      '&.Mui-disabled': {
+                        backgroundColor: '#333',
+                      }
+                    }}
+                  >
+                    Join
+                  </Button>
+                  <Button
+                    onClick={() => handleSpectateGame(game.id)}
+                    startIcon={<VisibilityIcon />}
+                    sx={{
+                      borderColor: '#666',
+                      color: '#fff',
+                      '&:hover': {
+                        borderColor: '#999',
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                      }
+                    }}
+                  >
+                    Spectate
+                  </Button>
+                </ButtonGroup>
+              </ListItem>
+            ))
+          )}
         </List>
       </StyledPaper>
 
       <CreateGameDialog
         open={createDialogOpen}
-        onClose={() => setCreateDialogOpen(false)}
+        onClose={handleCreateDialogClose}
         onSubmit={handleCreateGame}
       />
 
       <JoinGameDialog
         open={joinDialogOpen}
-        onClose={() => setJoinDialogOpen(false)}
+        onClose={handleJoinDialogClose}
         onSubmit={handleJoinGame}
       />
     </StyledContainer>

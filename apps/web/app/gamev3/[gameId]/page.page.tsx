@@ -1,7 +1,9 @@
 'use client';
 
 import {
+    useCallback,
     useEffect,
+    useMemo,
     useRef,
     useState,
 } from 'react';
@@ -57,16 +59,13 @@ export default function GamePage() {
     const lastStateTimestampRef = useRef<number>(0);
     const needsRenderRef = useRef<boolean>(false);
     const animationFrameRef = useRef<number>();
-    const playerActionsChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-    const playerIdRef = useRef<string | null>(null);
 
-    useEffect(() => {
-        (async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            playerIdRef.current = user?.id ?? null;
-        })();
+    // TODO: replace with actual id
+    const playerId = useMemo(() => {
+        return crypto.randomUUID();
     }, []);
 
+    const playerActionsChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
     // Initialize channels
     useEffect(() => {
         if (!params) return;
@@ -103,7 +102,7 @@ export default function GamePage() {
     }, [params?.gameId]);
 
     // Modify the action sending functions
-    const sendAction = (action: any) => {
+    const sendAction = useCallback((action: any) => {
         if (!playerActionsChannelRef.current) {
             console.error('No player actions channel found');
             return;
@@ -116,10 +115,10 @@ export default function GamePage() {
             event: 'player_action',
             payload: {
                 ...action,
-                playerId: playerIdRef.current
+                playerId
             }
         });
-    };
+    }, [playerId]);
 
     // Update keyboard handler to use sendAction
     useEffect(() => {
@@ -142,7 +141,7 @@ export default function GamePage() {
                     type: 'MOVE',
                     payload: { dx, dy },
                     id: crypto.randomUUID(),
-                    playerId: playerIdRef.current,
+                    playerId,
                     timestamp: performance.now()
                 });
             }
@@ -223,7 +222,7 @@ export default function GamePage() {
             window.removeEventListener('resize', handleResize);
             clearInterval(resizeInterval);
         };
-    }, []);
+    }, [playerId]);
 
     // Handle rendering
     useEffect(() => {

@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
         const result = await generateObject({
             ...rest,
-            model: openai('gpt-4o'),
+            model: openai('gpt-4o-mini'),
             schema,
             prompt,
         });

@@ -1,0 +1,99 @@
+import {
+  Entity,
+  EntityId,
+  Position,
+} from './types';
+
+export class World {
+    private entities: Map<EntityId, Entity> = new Map();
+    private grid: Map<string, EntityId> = new Map();
+
+    constructor(public readonly width: number, public readonly height: number) { }
+
+    addEntity(entity: Entity) {
+        this.entities.set(entity.id, entity);
+        const pos = entity.components.position;
+        if (pos) {
+            this.updateGrid(entity.id, pos);
+        }
+    }
+
+    removeEntity(entityId: EntityId) {
+        const entity = this.entities.get(entityId);
+        if (entity?.components.position) {
+            this.removeFromGrid(entityId, entity.components.position);
+        }
+        this.entities.delete(entityId);
+    }
+
+    getEntity(entityId: EntityId) {
+        return this.entities.get(entityId);
+    }
+
+    getAllEntities(): Entity[] {
+        return Array.from(this.entities.values());
+    }
+
+    private getGridKey(x: number, y: number): string {
+        return `${Math.floor(x)},${Math.floor(y)}`;
+    }
+
+    private updateGrid(entityId: EntityId, pos: Position) {
+        const key = this.getGridKey(pos.x, pos.y);
+        const oldKey = Array.from(this.grid.entries())
+            .find(([_, id]) => id === entityId)?.[0];
+
+        if (oldKey && oldKey !== key) {
+            this.grid.delete(oldKey);
+        }
+        this.grid.set(key, entityId);
+    }
+
+    private removeFromGrid(entityId: EntityId, pos: Position) {
+        const key = this.getGridKey(pos.x, pos.y);
+        if (this.grid.get(key) === entityId) {
+            this.grid.delete(key);
+        }
+    }
+
+    isPositionOccupied(x: number, y: number): boolean {
+        const key = this.getGridKey(x, y);
+        const occupyingEntity = this.grid.get(key);
+        if (!occupyingEntity) return false;
+
+        const entity = this.entities.get(occupyingEntity);
+        return entity?.components.collision?.solid ?? false;
+    }
+
+    moveEntity(entityId: EntityId, newX: number, newY: number): boolean {
+        const entity = this.entities.get(entityId);
+        if (!entity?.components.position) return false;
+
+        // Check bounds
+        if (newX < 0 || newX >= this.width || newY < 0 || newY >= this.height) {
+            console.log(`Movement out of bounds: (${newX},${newY})`);
+            return false;
+        }
+
+        // Check collisions
+        if (this.isPositionOccupied(newX, newY)) {
+            console.log(`Position occupied: (${newX},${newY})`);
+            return false;
+        }
+
+        // Update position
+        const oldPos = entity.components.position;
+        this.removeFromGrid(entityId, oldPos);
+        entity.components.position = { x: newX, y: newY };
+        this.updateGrid(entityId, entity.components.position);
+        return true;
+    }
+
+    debugGrid() {
+        console.log('Current Grid State:');
+        this.grid.forEach((entityId, key) => {
+            const entity = this.entities.get(entityId);
+            console.log(`${key}: ${entity?.type} (${entityId})`);
+        });
+    }
+} 

@@ -33,7 +33,7 @@ This document outlines a comprehensive plan for developing a 2D overhead, territ
    - Realtime: Facilitates real-time game updates and interactions.
 
 2. **Next.js / React**
-   - Server-side rendering for SEO and performance.
+   - Client-side rendering
    - React components for dynamic UI.
    - API routes for serverless functions if needed.
 

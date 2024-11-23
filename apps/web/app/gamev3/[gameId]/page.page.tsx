@@ -11,6 +11,7 @@ import { useParams } from 'next/navigation';
 import { TextField } from '@mui/material';
 
 import { Entity } from '../../game/[gameId]/ecs/types';
+import { supabase } from '../../sdk/supabase';
 import { ChatHistory } from './components/ChatHistory';
 import { SpeechBubble } from './components/SpeechBubble';
 import { renderSystem } from './renderSystem';
@@ -48,7 +49,6 @@ const gameAreaStyle: React.CSSProperties = {
 export default function GamePage() {
     const params = useParams();
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const wsRef = useRef<WebSocket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [gameState, setGameState] = useState<any>(null);
     const [message, setMessage] = useState('');
@@ -56,50 +56,65 @@ export default function GamePage() {
     const lastStateTimestampRef = useRef<number>(0);
     const needsRenderRef = useRef<boolean>(false);
     const animationFrameRef = useRef<number>();
+    const playerActionsChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-    // Initialize WebSocket connection
+    // Initialize channels
     useEffect(() => {
         if (!params.gameId) return;
 
-        const ws = new WebSocket(`ws://localhost:3001?gameId=${params.gameId}`);
-        wsRef.current = ws;
+        console.log('Initializing channels for game:', params.gameId);
 
-        ws.onopen = () => {
-            console.log('Connected to game server');
-            setIsConnected(true);
-        };
-
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.type === 'STATE_UPDATE') {
-                // Only update state if this message is newer than our last state
-                if (data.state.timestamp > lastStateTimestampRef.current) {
-                    lastStateTimestampRef.current = data.state.timestamp;
-                    setGameState(data.state);
-                    needsRenderRef.current = true; // Mark that we need a render
+        // Set up game state channel
+        const stateChannel = supabase
+            .channel(`game_state:${params.gameId}`)
+            .on('broadcast', { event: 'state_update' }, ({ payload }) => {
+                console.log('Received state update', payload);
+                setIsConnected(true);
+                if (payload.timestamp > lastStateTimestampRef.current) {
+                    lastStateTimestampRef.current = payload.timestamp;
+                    setGameState(payload.state);
+                    needsRenderRef.current = true;
                 }
-            }
-        };
+            })
+            .subscribe();
 
-        ws.onclose = () => {
-            console.log('Disconnected from game server');
-            setIsConnected(false);
-        };
+        // Set up player actions channel
+        const actionsChannel = supabase
+            .channel(`player_actions:${params.gameId}`)
+            .subscribe();
+
+        playerActionsChannelRef.current = actionsChannel;
 
         return () => {
-            ws.close();
-            wsRef.current = null;
-        };
+            console.log('Cleaning up channels');
+            stateChannel.unsubscribe();
+            actionsChannel.unsubscribe();
+        }
     }, [params.gameId]);
 
-    // Handle keyboard input
+    // Modify the action sending functions
+    const sendAction = (action: any) => {
+        if (!playerActionsChannelRef.current) {
+            console.error('No player actions channel found');
+            return;
+        }
+
+        console.log('Sending action', action);
+
+        playerActionsChannelRef.current.send({
+            type: 'broadcast',
+            event: 'player_action',
+            payload: action
+        });
+    };
+
+    // Update keyboard handler to use sendAction
     useEffect(() => {
-        if (!wsRef.current || isTyping) return; // Disable WASD when typing
+        if (isTyping) return; // Disable WASD when typing
 
         const keys = new Set<string>();
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Don't handle movement keys if typing
             if (isTyping) return;
 
             keys.add(e.key.toLowerCase());
@@ -110,22 +125,17 @@ export default function GamePage() {
 
             // Send movement action if there's movement
             if (dx !== 0 || dy !== 0) {
-                const action = {
-                    type: 'ACTION',
-                    action: {
-                        type: 'MOVE',
-                        payload: { dx, dy },
-                        id: crypto.randomUUID(),
-                        playerId: 'player',
-                        timestamp: performance.now()
-                    }
-                };
-                wsRef.current?.send(JSON.stringify(action));
+                sendAction({
+                    type: 'MOVE',
+                    payload: { dx, dy },
+                    id: crypto.randomUUID(),
+                    playerId: 'player',
+                    timestamp: performance.now()
+                });
             }
         };
 
         const handleKeyUp = (e: KeyboardEvent) => {
-            // Don't handle movement keys if typing
             if (isTyping) return;
 
             keys.delete(e.key.toLowerCase());
@@ -133,17 +143,13 @@ export default function GamePage() {
             const dx = Number(keys.has('d')) - Number(keys.has('a'));
             const dy = Number(keys.has('s')) - Number(keys.has('w'));
 
-            const action = {
-                type: 'ACTION',
-                action: {
-                    type: 'MOVE',
-                    payload: { dx, dy },
-                    id: crypto.randomUUID(),
-                    playerId: 'player',
-                    timestamp: performance.now()
-                }
-            };
-            wsRef.current?.send(JSON.stringify(action));
+            sendAction({
+                type: 'MOVE',
+                payload: { dx, dy },
+                id: crypto.randomUUID(),
+                playerId: 'player',
+                timestamp: performance.now()
+            });
         };
 
         window.addEventListener('keydown', handleKeyDown);
@@ -155,19 +161,16 @@ export default function GamePage() {
         };
     }, [isTyping]);
 
+    // Update message submit handler
     const handleMessageSubmit = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && message.trim() && wsRef.current) {
-            const action = {
-                type: 'ACTION',
-                action: {
-                    type: 'CHAT',
-                    payload: { message: message.trim() },
-                    id: crypto.randomUUID(),
-                    playerId: 'player',
-                    timestamp: performance.now()
-                }
-            };
-            wsRef.current.send(JSON.stringify(action));
+        if (e.key === 'Enter' && message.trim()) {
+            sendAction({
+                type: 'CHAT',
+                payload: { message: message.trim() },
+                id: crypto.randomUUID(),
+                playerId: 'player',
+                timestamp: performance.now()
+            });
             setMessage('');
         }
     };
@@ -256,7 +259,6 @@ export default function GamePage() {
     return (
         <div style={containerStyle}>
             <div style={gameAreaStyle}>
-
                 <canvas
                     ref={canvasRef}
                     style={{
@@ -286,30 +288,16 @@ export default function GamePage() {
                         if (entity.components.speech.expiryTime < gameState.timestamp) return null;
 
                         return (
-                            <>
-                                <div style={{
-                                    position: 'absolute',
-                                    top: screenY,
-                                    left: screenX,
-                                    width: '3px',
-                                    height: '3px',
-                                    backgroundColor: 'red',
-                                    zIndex: 9999999999,
-                                }}>
-
-                                </div>
-                                <SpeechBubble
-                                    key={id}
-                                    text={entity.components.speech.message}
-                                    x={screenX}
-                                    y={screenY}
-                                    expiryTime={entity.components.speech.expiryTime}
-                                    // @ts-ignore
-                                    fadeStartTime={entity.components.speech.fadeStartTime}
-                                    currentTime={gameState.timestamp}
-                                />
-                            </>
-
+                            <SpeechBubble
+                                key={id}
+                                text={entity.components.speech.message}
+                                x={screenX}
+                                y={screenY}
+                                expiryTime={entity.components.speech.expiryTime}
+                                // @ts-ignore
+                                fadeStartTime={entity.components.speech.fadeStartTime}
+                                currentTime={gameState.timestamp}
+                            />
                         );
                     }
                     return null;

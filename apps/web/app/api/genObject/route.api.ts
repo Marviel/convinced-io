@@ -9,8 +9,6 @@ export async function POST(request: Request) {
     try {
         const body = await request.json();
 
-        console.log(body);
-
         const { schema: schemaPreParsed, prompt, ...rest } = body;
 
         const schema = unsafeJsonSchemaToZod(schemaPreParsed);

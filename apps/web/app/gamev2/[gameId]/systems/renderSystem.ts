@@ -188,10 +188,26 @@ export function renderSystem(world: WorldManager, { ctx, width, height, tileSize
     // Set up camera transform
     ctx.scale(scale, scale);
 
-    // Draw background grid
+    // Enable image smoothing settings for pixel art
+    ctx.imageSmoothingEnabled = false;
+
+    // Draw tile-based background
     for (let y = 0; y < world.height; y++) {
         for (let x = 0; x < world.width; x++) {
-            drawTile(ctx, x, y);
+            const tile = world.getTile(x, y);
+            if (tile) {
+                // Draw grass base layer
+                const baseTile = tileCache.get(tile.baseLayer);
+                if (baseTile) {
+                    ctx.drawImage(baseTile, x, y, 1, 1);
+                } else {
+                    loadTile(tile.baseLayer).catch(console.error);
+                    // Draw fallback color while loading
+                    drawTile(ctx, x, y);
+                }
+            } else {
+                drawTile(ctx, x, y);
+            }
         }
     }
 
@@ -202,11 +218,20 @@ export function renderSystem(world: WorldManager, { ctx, width, height, tileSize
 
         const x = Position.x[eid] ?? 0;
         const y = Position.y[eid] ?? 0;
-        const spriteIndex = Appearance.spriteIndex[eid];
-        const sprite = spriteIndex !== undefined ?
-            world.getSprite(spriteIndex) : null;
+        const structureNumber = Appearance.spriteIndex[eid];
 
-        drawEntity(ctx, x, y, null, '#b2bec3');
+        if (structureNumber !== undefined) {
+            const tile = tileCache.get(structureNumber);
+            if (tile) {
+                ctx.drawImage(tile, x, y, 1, 1);
+            } else {
+                loadTile(structureNumber).catch(console.error);
+                // Draw fallback while loading
+                drawEntity(ctx, x, y, null, '#b2bec3');
+            }
+        } else {
+            drawEntity(ctx, x, y, null, '#b2bec3');
+        }
     }
 
     // Draw characters (middle layer)

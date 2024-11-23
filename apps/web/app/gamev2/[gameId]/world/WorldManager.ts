@@ -15,7 +15,10 @@ import {
     Pathfinding,
     Position,
 } from '../components';
-import { AVAILABLE_SPRITES } from '../constants';
+import {
+    AVAILABLE_SPRITES,
+    STRUCTURE_TILES,
+} from '../constants';
 
 // Constants
 export const ENTITY_TYPES = {
@@ -38,6 +41,7 @@ export class WorldManager {
     spritePool: string[] = [];
     pathPool: Array<Array<{ x: number, y: number }>> = [];
     private grid: Map<string, number> = new Map();
+    private tiles: Map<string, { baseLayer: number }> = new Map();
 
     constructor(
         public readonly width: number,
@@ -65,6 +69,13 @@ export class WorldManager {
     }
 
     private initializeWorld() {
+        // Initialize grass tiles
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                this.setTile(x, y, { baseLayer: STRUCTURE_TILES.GRASS });
+            }
+        }
+
         // Create player at center
         this.createPlayer(
             Math.floor(this.width / 2),
@@ -161,6 +172,9 @@ export class WorldManager {
         EntityType.type[eid] = ENTITY_TYPES.STRUCTURE;
         Collision.solid[eid] = 1;
 
+        // Set structure appearance
+        Appearance.spriteIndex[eid] = STRUCTURE_TILES.STUMP;
+
         this.updateGrid(eid, x, y);
 
         return eid;
@@ -218,5 +232,15 @@ export class WorldManager {
 
     getPath(index: number): Array<{ x: number, y: number }> | undefined {
         return this.pathPool[index];
+    }
+
+    getTile(x: number, y: number) {
+        const key = this.getGridKey(x, y);
+        return this.tiles.get(key);
+    }
+
+    setTile(x: number, y: number, tile: { baseLayer: number }) {
+        const key = this.getGridKey(x, y);
+        this.tiles.set(key, tile);
     }
 } 

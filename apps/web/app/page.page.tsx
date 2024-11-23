@@ -563,18 +563,12 @@ export default function Home() {
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={game._name}
+                  primary={<span>{game._name}</span>}
                   secondary={
-                    <Box
-                      component="span"
-                      sx={{ color: '#999', mt: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}
-                    >
-                      <Typography
-                        component="span"
-                        sx={{ color: '#999' }}
-                      >
+                    <Box sx={{ color: '#999', mt: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <span style={{ color: '#999' }}>
                         Players: {game.current_players}/{game.max_players}
-                      </Typography>
+                      </span>
                       <Chip
                         label={game.status}
                         size="small"
@@ -583,12 +577,9 @@ export default function Home() {
                           color: '#fff'
                         }}
                       />
-                      <Typography
-                        component="span"
-                        sx={{ color: '#999' }}
-                      >
+                      <span style={{ color: '#999' }}>
                         Spectators: {game.spectators_count}
-                      </Typography>
+                      </span>
                     </Box>
                   }
                 />

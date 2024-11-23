@@ -669,11 +669,10 @@ export default function Lobby() {
                       </ListItemAvatar>
                       <ListItemText 
                         primary={
-                          <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {player.display_name}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <span>{player.display_name}</span>
                             {player.is_host && (
                               <Chip 
-                                component="span"
                                 label="Host" 
                                 size="small"
                                 sx={{ 
@@ -685,12 +684,9 @@ export default function Lobby() {
                           </Box>
                         }
                         secondary={
-                          <Typography
-                            component="span"
-                            sx={{ color: player.is_ready ? '#4caf50' : '#ff9800' }}
-                          >
+                          <span style={{ color: player.is_ready ? '#4caf50' : '#ff9800' }}>
                             {player.is_ready ? 'Ready' : 'Not Ready'}
-                          </Typography>
+                          </span>
                         }
                       />
                       {currentUser?.is_host && !player.is_host && (
@@ -741,14 +737,11 @@ export default function Lobby() {
                             </Avatar>
                           </ListItemAvatar>
                           <ListItemText 
-                            primary={spectator.display_name}
+                            primary={<span>{spectator.display_name}</span>}
                             sx={{ 
                               '& .MuiListItemText-primary': { 
                                 color: '#999' 
                               }
-                            }}
-                            primaryTypographyProps={{
-                              component: 'span'
                             }}
                           />
                           {currentUser?.is_host && (

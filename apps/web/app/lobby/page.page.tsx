@@ -32,8 +32,8 @@ import { AVAILABLE_SPRITES } from '../../utils/sprites'
 import Image from 'next/image'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import CheckIcon from '@mui/icons-material/Check'
-import { createClient } from '@supabase/supabase-js'
 import VisibilityIcon from '@mui/icons-material/Visibility'
+import { supabase } from './../sdk/supabase';
 
 const StyledContainer = styled(Container)({
   display: 'flex',
@@ -121,12 +121,6 @@ interface Player {
   is_spectator: boolean;
   sprite_name: string;
 }
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
 export default function Lobby() {
   const [gameSettings, setGameSettings] = React.useState<GameSettings>({
     num_npcs: 5,

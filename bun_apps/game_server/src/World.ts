@@ -35,12 +35,6 @@ export class World {
     }
 
     private async initializeEntities() {
-        // Create player at center
-        this.createPlayer(
-            Math.floor(this.width / 2),
-            Math.floor(this.height / 2)
-        );
-
         // Create NPCs
         await this.createInitialNPCs();
 
@@ -48,12 +42,36 @@ export class World {
         this.createInitialStructures();
     }
 
-    private createPlayer(x: number, y: number) {
+    /**
+     * Create a player entity
+     * @param id - The ID of the player
+     * @param x - The x position of the player
+     * @param y - The y position of the player
+     * @returns The created player entity
+     */
+    public createPlayer(id: string, x?: number, y?: number) {
+
+        var usingX = x ?? 0;
+        var usingY = y ?? 0;
+
+        /// Find an open spot if x and y are not provided
+        if (!x || !y) {
+            const maxAttempts = 1000;
+            let found = false;
+            let attempts = 0;
+            while (!found && attempts < maxAttempts) {
+                usingX = Math.floor(Math.random() * this.width);
+                usingY = Math.floor(Math.random() * this.height);
+                found = !this.isPositionOccupied(usingX, usingY);
+                attempts++;
+            }
+        }
+
         const entity: Entity = {
-            id: 'player',
+            id,
             type: 'player',
             components: {
-                position: { x, y },
+                position: { x: usingX, y: usingY },
                 appearance: {
                     sprite: AVAILABLE_SPRITES[Math.floor(Math.random() * AVAILABLE_SPRITES.length)],
                     direction: 'fr',
@@ -69,6 +87,8 @@ export class World {
                 interactable: { radius: 5 }
             }
         };
+
+        console.log(`Created player ${id} at ${usingX},${usingY}`);
 
         this.addEntity(entity);
         return entity;

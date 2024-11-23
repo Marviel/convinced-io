@@ -4,14 +4,13 @@ import type {
     Action,
     GameState,
 } from './types';
-import type { GameServerWebSocket } from './types/connection';
 import { World } from './World';
 
 interface GameInstance {
     world: World;
     gameLoopInterval: number;
     lastActiveTime: number;
-    connections: Set<GameServerWebSocket>;
+    connections: Array<{ playerId: string }>;
 }
 
 export class GameManager {
@@ -37,34 +36,26 @@ export class GameManager {
             world,
             gameLoopInterval,
             lastActiveTime: Date.now(),
-            connections: new Set()
+            connections: []
         };
 
         this.games.set(gameId, gameInstance);
         return world;
     }
 
-    joinGame(gameId: string, connection: GameServerWebSocket): boolean {
-        const game = this.games.get(gameId);
-        if (!game) return false;
-
-        game.connections.add(connection);
-        game.lastActiveTime = Date.now();
-        return true;
-    }
-
-    leaveGame(gameId: string, connection: GameServerWebSocket) {
-        const game = this.games.get(gameId);
-        if (game) {
-            game.connections.delete(connection);
-            game.lastActiveTime = Date.now();
-        }
-    }
 
     processAction(gameId: string, action: Action) {
-        console.log(`gameId: ${gameId} processing action`);
+        console.log(`gameId: ${gameId} processing action ${JSON.stringify(action)}`);
         const game = this.games.get(gameId);
         if (!game) return;
+
+        const playerId = action.playerId;
+
+        // If we haven't seen this player yet, create them
+        if (!game.connections.find(c => c.playerId === action.playerId)) {
+            console.log(`gameId: ${gameId} creating player ${action.playerId}`);
+            this.handleUserJoin(gameId, action.playerId);
+        }
 
         switch (action.type) {
             case 'MOVE':
@@ -80,6 +71,23 @@ export class GameManager {
 
         // Broadcast new state to all connections
         this.broadcastGameState(gameId);
+    }
+
+    handleUserJoin(gameId: string, playerId: string) {
+        const game = this.games.get(gameId);
+        if (!game) return;
+
+        game.connections.push({ playerId });
+
+        // Create the player
+        game.world.createPlayer(playerId);
+    }
+
+    handleUserLeave(gameId: string, playerId: string) {
+        const game = this.games.get(gameId);
+        if (!game) return;
+
+        game.connections = game.connections.filter(c => c.playerId !== playerId);
     }
 
     private startGameLoop(gameId: string, world: World): number {

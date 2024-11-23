@@ -135,7 +135,7 @@ export default function GameRoom() {
                     },
                     collision: { solid: true },
                     ai: { type: 'random', nextMoveTime: 0 },
-                    pathfinding
+                    pathfinding: { targetPosition: { x: 0, y: 0 } }
                 },
             };
             world.addEntity(npc);

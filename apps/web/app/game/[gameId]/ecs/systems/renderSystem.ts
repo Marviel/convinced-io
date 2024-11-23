@@ -109,7 +109,7 @@ export function renderSystem(world: World, context: RenderContext) {
             if (path.length > 0) {
                 // Draw connecting lines with gradient
                 ctx.beginPath();
-                ctx.strokeStyle = appearance.color;
+                ctx.strokeStyle = appearance.color || '#ff0000';
                 ctx.lineWidth = 2;
                 ctx.globalAlpha = 0.3;
 
@@ -132,7 +132,7 @@ export function renderSystem(world: World, context: RenderContext) {
                     const pathY = (point.y - mapSize / 2) * tileSize + tileSize / 2;
                     ctx.beginPath();
                     ctx.arc(pathX, pathY, 2, 0, Math.PI * 2);
-                    ctx.fillStyle = appearance.color;
+                    ctx.fillStyle = appearance.color || '#ff0000';
                     ctx.globalAlpha = 0.5;
                     ctx.fill();
                 });
@@ -145,7 +145,7 @@ export function renderSystem(world: World, context: RenderContext) {
             const targetX = (pathfinding.targetPosition.x - mapSize / 2) * tileSize + tileSize / 2;
             const targetY = (pathfinding.targetPosition.y - mapSize / 2) * tileSize + tileSize / 2;
 
-            ctx.fillStyle = appearance.color;
+            ctx.fillStyle = appearance.color || '#ff0000';
             drawStar(ctx, targetX, targetY, tileSize / 2, 0.5);
         }
 

@@ -1,3 +1,36 @@
+# Convinced.io
+A game where you convince AI to win.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+----------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+# OLD README
+
+
 # Turborepo starter
 
 This is an official starter Turborepo.

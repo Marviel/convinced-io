@@ -99,10 +99,21 @@ const CreateGameDialog = ({ open, onClose, onSubmit }: CreateGameDialogProps) =>
     setDisplayName('')
   }
 
+  const handleClose = React.useCallback(() => {
+    setGameName('')
+    setDisplayName('')
+    onClose()
+  }, [onClose])
+
   return (
     <Dialog 
       open={open} 
-      onClose={onClose}
+      onClose={handleClose}
+      slotProps={{
+        backdrop: {
+          style: { backgroundColor: 'rgba(0, 0, 0, 0.8)' }
+        }
+      }}
       PaperProps={{
         sx: {
           backgroundColor: '#222',
@@ -130,7 +141,7 @@ const CreateGameDialog = ({ open, onClose, onSubmit }: CreateGameDialogProps) =>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
         <Button 
-          onClick={onClose}
+          onClick={handleClose}
           sx={{ color: '#fff' }}
         >
           Cancel
@@ -163,10 +174,21 @@ const JoinGameDialog = ({ open, onClose, onSubmit }: JoinGameDialogProps) => {
     setDisplayName('')
   }
 
+  const handleClose = React.useCallback(() => {
+    setGameId('')
+    setDisplayName('')
+    onClose()
+  }, [onClose])
+
   return (
     <Dialog 
       open={open} 
-      onClose={onClose}
+      onClose={handleClose}
+      slotProps={{
+        backdrop: {
+          style: { backgroundColor: 'rgba(0, 0, 0, 0.8)' }
+        }
+      }}
       PaperProps={{
         sx: {
           backgroundColor: '#222',
@@ -194,7 +216,7 @@ const JoinGameDialog = ({ open, onClose, onSubmit }: JoinGameDialogProps) => {
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
         <Button 
-          onClick={onClose}
+          onClick={handleClose}
           sx={{ color: '#fff' }}
         >
           Cancel
@@ -459,6 +481,14 @@ export default function Home() {
     }
   }
 
+  const handleCreateDialogClose = React.useCallback(() => {
+    setCreateDialogOpen(false)
+  }, [])
+
+  const handleJoinDialogClose = React.useCallback(() => {
+    setJoinDialogOpen(false)
+  }, [])
+
   return (
     <StyledContainer>
       <Typography variant="h2" component="h1" gutterBottom sx={{ color: '#fff' }}>
@@ -533,20 +563,28 @@ export default function Home() {
                 <ListItemText
                   primary={game._name}
                   secondary={
-                    <Box sx={{ color: '#999', mt: 0.5 }}>
-                      <Typography component="span" sx={{ color: '#999' }}>
+                    <Box
+                      component="span"
+                      sx={{ color: '#999', mt: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}
+                    >
+                      <Typography
+                        component="span"
+                        sx={{ color: '#999' }}
+                      >
                         Players: {game.current_players}/{game.max_players}
                       </Typography>
                       <Chip
                         label={game.status}
                         size="small"
                         sx={{
-                          ml: 1,
                           backgroundColor: game.status === 'waiting' ? '#4caf50' : '#ff9800',
                           color: '#fff'
                         }}
                       />
-                      <Typography component="span" sx={{ ml: 1, color: '#999' }}>
+                      <Typography
+                        component="span"
+                        sx={{ color: '#999' }}
+                      >
                         Spectators: {game.spectators_count}
                       </Typography>
                     </Box>
@@ -593,13 +631,13 @@ export default function Home() {
 
       <CreateGameDialog
         open={createDialogOpen}
-        onClose={() => setCreateDialogOpen(false)}
+        onClose={handleCreateDialogClose}
         onSubmit={handleCreateGame}
       />
 
       <JoinGameDialog
         open={joinDialogOpen}
-        onClose={() => setJoinDialogOpen(false)}
+        onClose={handleJoinDialogClose}
         onSubmit={handleJoinGame}
       />
     </StyledContainer>

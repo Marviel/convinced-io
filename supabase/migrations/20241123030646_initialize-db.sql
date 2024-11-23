@@ -55,6 +55,8 @@ CREATE TABLE game_rooms (
     is_public BOOLEAN DEFAULT true,
     max_players INTEGER DEFAULT 4,
     current_players INTEGER DEFAULT 1,
+    difficulty TEXT DEFAULT 'medium',
+    num_npcs INTEGER DEFAULT 5,
     status TEXT DEFAULT 'waiting',
     created_date TIMESTAMPTZ DEFAULT now() NOT NULL,
     updated_date TIMESTAMPTZ DEFAULT now() NOT NULL,

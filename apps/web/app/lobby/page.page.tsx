@@ -109,7 +109,7 @@ const StyledTextField = styled(TextField)({
 })
 
 interface GameSettings {
-  numNPCs: number;
+  num_npcs: number;
   difficulty: string;
 }
 
@@ -129,7 +129,7 @@ const supabase = createClient(
 
 export default function Lobby() {
   const [gameSettings, setGameSettings] = React.useState<GameSettings>({
-    numNPCs: 5,
+    num_npcs: 5,
     difficulty: 'medium'
   })
   const [selectedSprite, setSelectedSprite] = React.useState<string>(AVAILABLE_SPRITES[0] || '')
@@ -162,7 +162,7 @@ export default function Lobby() {
         if (gameError) throw gameError
 
         setGameSettings({
-          numNPCs: gameRoom.num_npcs || 5,
+          num_npcs: gameRoom.num_npcs || 5,
           difficulty: gameRoom.difficulty || 'medium'
         })
 
@@ -505,6 +505,7 @@ export default function Lobby() {
 
       {gameId && (
         <Box 
+          component="span"
           sx={{ 
             display: 'flex', 
             alignItems: 'center', 
@@ -516,7 +517,7 @@ export default function Lobby() {
             width: 'fit-content'
           }}
         >
-          <Typography sx={{ color: '#fff' }}>
+          <Typography component="span" sx={{ color: '#fff' }}>
             Game ID: {gameId}
           </Typography>
           <Tooltip title={copied ? "Copied!" : "Copy Game ID"}>
@@ -571,10 +572,12 @@ export default function Lobby() {
           </Typography>
 
           <Box>
-            <Typography gutterBottom>Number of NPCs: {gameSettings.numNPCs}</Typography>
+            <Typography component="span" gutterBottom>
+              Number of NPCs: {gameSettings.num_npcs}
+            </Typography>
             <Slider
-              value={gameSettings.numNPCs}
-              onChange={(_, value) => handleSettingsChange({ numNPCs: value as number })}
+              value={gameSettings.num_npcs}
+              onChange={(_, value) => handleSettingsChange({ num_npcs: value as number })}
               disabled={!currentUser?.is_host}
               min={5}
               max={10}
@@ -655,10 +658,11 @@ export default function Lobby() {
                       </ListItemAvatar>
                       <ListItemText 
                         primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             {player.display_name}
                             {player.is_host && (
                               <Chip 
+                                component="span"
                                 label="Host" 
                                 size="small"
                                 sx={{ 
@@ -670,7 +674,10 @@ export default function Lobby() {
                           </Box>
                         }
                         secondary={
-                          <Typography sx={{ color: player.is_ready ? '#4caf50' : '#ff9800' }}>
+                          <Typography
+                            component="span"
+                            sx={{ color: player.is_ready ? '#4caf50' : '#ff9800' }}
+                          >
                             {player.is_ready ? 'Ready' : 'Not Ready'}
                           </Typography>
                         }
@@ -700,7 +707,7 @@ export default function Lobby() {
                 {/* Spectators Section */}
                 {players.some(player => player.is_spectator) && (
                   <>
-                    <Typography variant="h6" sx={{ mt: 3, mb: 1, color: '#666' }}>
+                    <Typography component="span" variant="h6" sx={{ mt: 3, mb: 1, color: '#666' }}>
                       Spectators
                     </Typography>
                     {players
@@ -728,6 +735,9 @@ export default function Lobby() {
                               '& .MuiListItemText-primary': { 
                                 color: '#999' 
                               }
+                            }}
+                            primaryTypographyProps={{
+                              component: 'span'
                             }}
                           />
                           {currentUser?.is_host && (
@@ -827,9 +837,22 @@ export default function Lobby() {
         open={copied}
         autoHideDuration={2000}
         onClose={() => setCopied(false)}
-        message="Game ID copied to clipboard"
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      />
+        sx={{ position: 'fixed' }}
+      >
+        <Box
+          sx={{
+            backgroundColor: '#333',
+            color: '#fff',
+            padding: '6px 16px',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center'
+          }}
+        >
+          Game ID copied to clipboard
+        </Box>
+      </Snackbar>
     </StyledContainer>
   )
 } 

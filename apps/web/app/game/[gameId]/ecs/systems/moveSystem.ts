@@ -32,7 +32,7 @@ export function moveSystem(world: World, { delta, currentTime, movement }: MoveS
 
             if (moved) {
                 entityMovement.lastMoveTime = currentTime;
-                console.log(`Entity ${entity.type} moved to ${newX},${newY}`);
+                // console.log(`Entity ${entity.type} moved to ${newX},${newY}`);
             } else {
                 if (entity.type === 'npc') {
                     entityMovement.dx = 0;
@@ -45,7 +45,7 @@ export function moveSystem(world: World, { delta, currentTime, movement }: MoveS
                 else if (entityMovement.dx < 0) entity.components.appearance.direction = 'lf';
                 else if (entityMovement.dy > 0) entity.components.appearance.direction = 'fr';
                 else if (entityMovement.dy < 0) entity.components.appearance.direction = 'bk';
-                
+
                 entity.components.appearance.isMoving = entityMovement.dx !== 0 || entityMovement.dy !== 0;
             }
         }

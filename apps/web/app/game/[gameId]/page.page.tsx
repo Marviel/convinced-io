@@ -32,7 +32,7 @@ const TILE_SIZE = 32;
 const MAP_SIZE = 50;
 const NUM_NPCS = 20;
 const INTERACTION_RADIUS = 5; // 5 tiles radius
-const AVAILABLE_SPRITES = ['house3', 'mnt1', 'wmn3', 'amg2', 'man4', 'wmg3', 'npc1', 'bmg1', 'nja3', 'dvl1', 'npc3', 'scr1', 'pdn4', 'pdn2', 'nja1', 'ftr2', 'house1', 'knt4', 'ygr1', 'wnv3', 'thf3', 'wnv2', 'amg3', 'amg4', 'mst2', 'trk1', 'mnv1', 'npc6', 'smr4', 'npc2', 'npc5', 'npc8', 'house2', 'smr1', 'wmn2', 'wmg4', 'knt3', 'scr3', 'mnv4', 'pdn3', 'mnv3', 'ftr4', 'thf1', 'nja4', 'smr2', 'bmg3', 'man3', 'wnv4', 'bmg2', 'ftr3', 'mst1', 'jli1', 'wmn1', 'npc7', 'gsd1', 'amg1', 'avt3', 'ybo1', 'thf2', 'smr3', 'kin1', 'mnt4', 'chr1', 'mnt2', 'syb1', 'ftr1', 'mnt3', 'isd1', 'mnv2', 'thf4', 'npc9', 'avt2', 'pdn1', 'wmg1', 'wmg2', 'man1', 'scr2', 'mst4', 'mst3', 'knt1', 'knt2', 'bmg4', 'house4', 'skl1', 'spd1', 'avt4', 'npc4', 'scr4', 'man2', 'nja2', 'zph1', 'wnv1', 'avt1'];
+const AVAILABLE_SPRITES = ['house3', 'mnt1', 'wmn3', 'amg2', 'man4', 'wmg3', 'npc1', 'bmg1', 'nja3', 'dvl1', 'npc3', 'scr1', 'pdn4', 'pdn2', 'nja1', 'ftr2', 'house1', 'knt4', 'ygr1', 'wnv3', 'thf3', 'wnv2', 'amg3', 'amg4', 'mst2', 'trk1', 'mnv1', 'npc6', 'smr4', 'npc2', 'npc5', 'npc8', 'house2', 'smr1', 'wmn2', 'wmg4', 'knt3', 'scr3', 'mnv4', 'pdn3', 'mnv3', 'ftr4', 'thf1', 'nja4', 'smr2', 'bmg3', 'man3', 'wnv4', 'bmg2', 'ftr3', 'mst1', 'jli1', 'wmn1', 'npc7', 'gsd1', 'amg1', 'avt3', 'ybo1', 'thf2', 'smr3', 'kin1', 'mnt4', 'chr1', 'mnt2', 'syb1', 'ftr1', 'mnt3', 'isd1', 'mnv2', 'thf4', 'npc9', 'avt2', 'pdn1', 'wmg1', 'wmg2', 'man1', 'scr2', 'mst4', 'mst3', 'knt1', 'knt2', 'bmg4', 'skl1', 'spd1', 'avt4', 'npc4', 'scr4', 'man2', 'nja2', 'zph1', 'wnv1', 'avt1'];
 
 const GameContainer = styled('div')({
     width: '100vw',
@@ -42,18 +42,31 @@ const GameContainer = styled('div')({
     display: 'flex',
 });
 
-const GameArea = styled('div')({
-    position: 'relative',
+const GameSection = styled('div')({
+    flex: 1,
     height: '100%',
-    aspectRatio: '1 / 1',
-    margin: 'auto',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+});
+
+const GameArea = styled('div')({
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+});
+
+const ChatSection = styled('div')({
+    width: '300px',
+    height: '100%',
+    borderLeft: '1px solid #333',
+    flexShrink: 0,
 });
 
 const GameCanvas = styled('canvas')({
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
+
     imageRendering: 'pixelated',
 });
 
@@ -222,14 +235,20 @@ export default function GameRoom() {
         return () => window.removeEventListener('keydown', handleDebugKey);
     }, []);
 
-    // Add resize handler
+    // Modify the resize handler
     useEffect(() => {
         const handleResize = () => {
             if (!canvasRef.current) return;
 
-            // Calculate the size that maintains square aspect ratio
-            const minDimension = Math.min(window.innerWidth, window.innerHeight);
-            const size = Math.floor(minDimension * 0.9); // 90% of the smaller dimension
+            const gameSection = canvasRef.current.parentElement?.parentElement;
+            if (!gameSection) return;
+
+            // Get the available space in the game section
+            const availableWidth = gameSection.clientWidth;
+            const availableHeight = gameSection.clientHeight;
+
+            // Use the smaller dimension to maintain square aspect ratio
+            const size = Math.min(availableWidth, availableHeight) * 0.9; // 90% of the smaller dimension
 
             canvasRef.current.width = MAP_SIZE * TILE_SIZE;
             canvasRef.current.height = MAP_SIZE * TILE_SIZE;
@@ -345,23 +364,27 @@ export default function GameRoom() {
     // Update the render function to include button and speech bubble
     return (
         <GameContainer>
-            <GameArea>
-                <GameCanvas ref={canvasRef} />
-                <Button
-                    variant="contained"
-                    onClick={handleGenerate}
-                    sx={{
-                        position: 'absolute',
-                        bottom: 20,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        zIndex: 1000,
-                    }}
-                >
-                    Generate Message
-                </Button>
-            </GameArea>
-            <ChatHistory messages={messages} />
+            <GameSection>
+                <GameArea>
+                    <GameCanvas ref={canvasRef} />
+                    <Button
+                        variant="contained"
+                        onClick={handleGenerate}
+                        sx={{
+                            position: 'absolute',
+                            bottom: 20,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            zIndex: 1000,
+                        }}
+                    >
+                        Generate Message
+                    </Button>
+                </GameArea>
+            </GameSection>
+            <ChatSection>
+                <ChatHistory messages={messages} />
+            </ChatSection>
         </GameContainer>
     );
 }

@@ -77,6 +77,25 @@ function drawStar(ctx: CanvasRenderingContext2D, x: number, y: number, size: num
     ctx.restore();
 }
 
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = words[0];
+
+    for (let i = 1; i < words.length; i++) {
+        const word = words[i];
+        const width = ctx.measureText(currentLine + ' ' + word).width;
+        if (width < maxWidth) {
+            currentLine += ' ' + word;
+        } else {
+            lines.push(currentLine);
+            currentLine = word;
+        }
+    }
+    lines.push(currentLine);
+    return lines;
+}
+
 export function renderSystem(world: World, context: RenderContext) {
     const { ctx, width, height, tileSize, mapSize } = context;
 
@@ -131,6 +150,7 @@ export function renderSystem(world: World, context: RenderContext) {
     }
 
     // Draw entities and their paths
+    const speechBubbles: (() => void)[] = [];
     for (const entity of world.getAllEntities()) {
         const pos = entity.components.position;
         const appearance = entity.components.appearance;
@@ -295,68 +315,84 @@ export function renderSystem(world: World, context: RenderContext) {
 
         // Draw speech bubble if entity has speech
         if (speech) {
-            ctx.save();
+            speechBubbles.push(() => {
+                ctx.save();
 
-            // Special handling for thinking indicator
-            if (speech.isThinking) {
-                const size = tileSize / 2;
-                // Color based on thinking state
-                const thinkingColors = {
-                    listening: 'yellow',
-                    changed: 'red',
-                    notChanged: '#888888'  // gray
-                };
-                ctx.fillStyle = speech.thinkingState ?
-                    thinkingColors[speech.thinkingState] :
-                    thinkingColors.listening;
+                // Special handling for thinking indicator
+                if (speech.isThinking) {
+                    const size = tileSize / 2;
+                    const thinkingColors = {
+                        listening: 'yellow',
+                        changed: 'red',
+                        notChanged: '#888888'  // gray
+                    };
+                    ctx.fillStyle = speech.thinkingState ?
+                        thinkingColors[speech.thinkingState] :
+                        thinkingColors.listening;
 
-                ctx.beginPath();
-                ctx.arc(x, y - tileSize - size, size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = 'white';  // Make the ! white for better contrast
-                ctx.font = `bold ${size}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('!', x, y - tileSize - size);
-            } else {
-                // Speech bubble background
-                const padding = 10;
-                const fontSize = 14;
-                ctx.font = `${fontSize}px Arial`;
-                const textWidth = ctx.measureText(speech.message).width;
-                const bubbleWidth = textWidth + padding * 2;
-                const bubbleHeight = fontSize + padding * 2;
-                const bubbleX = x - bubbleWidth / 2;
-                const bubbleY = y - tileSize - bubbleHeight - 10;
+                    ctx.beginPath();
+                    ctx.arc(x, y - tileSize - size, size, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = 'white';
+                    ctx.font = `bold ${size}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('!', x, y - tileSize - size);
+                } else {
+                    // Speech bubble background
+                    const padding = 10;
+                    const fontSize = 14;
+                    const maxWidth = 200;  // Maximum width for speech bubbles
 
-                // Draw bubble background
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                ctx.beginPath();
-                ctx.roundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, 8);
-                ctx.fill();
+                    ctx.font = `${fontSize}px Arial`;
 
-                // Draw pointer
-                ctx.beginPath();
-                ctx.moveTo(x - 8, bubbleY + bubbleHeight);
-                ctx.lineTo(x + 8, bubbleY + bubbleHeight);
-                ctx.lineTo(x, bubbleY + bubbleHeight + 8);
-                ctx.closePath();
-                ctx.fill();
+                    // Wrap text and calculate dimensions
+                    const lines = wrapText(ctx, speech.message, maxWidth - (padding * 2));
+                    const lineHeight = fontSize * 1.2;
+                    const bubbleHeight = (lines.length * lineHeight) + padding * 2;
+                    const bubbleWidth = Math.min(
+                        Math.max(...lines.map(line => ctx.measureText(line).width)) + padding * 2,
+                        maxWidth
+                    );
 
-                // Draw text
-                ctx.fillStyle = '#000';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(
-                    speech.message,
-                    x,
-                    bubbleY + bubbleHeight / 2
-                );
-            }
+                    const bubbleX = x - bubbleWidth / 2;
+                    const bubbleY = y - tileSize - bubbleHeight - 10;
 
-            ctx.restore();
+                    // Draw bubble background
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.beginPath();
+                    ctx.roundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, 8);
+                    ctx.fill();
+
+                    // Draw pointer
+                    ctx.beginPath();
+                    ctx.moveTo(x - 8, bubbleY + bubbleHeight);
+                    ctx.lineTo(x + 8, bubbleY + bubbleHeight);
+                    ctx.lineTo(x, bubbleY + bubbleHeight + 8);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Draw text
+                    ctx.fillStyle = '#000';
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+
+                    lines.forEach((line, index) => {
+                        ctx.fillText(
+                            line,
+                            bubbleX + padding,
+                            bubbleY + padding + (index * lineHeight)
+                        );
+                    });
+                }
+
+                ctx.restore();
+            });
         }
     }
+
+    // After drawing all entities, draw speech bubbles last (on top)
+    speechBubbles.forEach(drawBubble => drawBubble());
 
     ctx.restore();
 } 

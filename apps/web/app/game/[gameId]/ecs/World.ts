@@ -23,7 +23,7 @@ export class World {
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
                 const key = this.getGridKey(x, y);
-                
+
                 // Basic grass tile (18-26) There is no 20
                 let baseLayer = 18 + Math.floor(Math.random() * 9);
                 if (baseLayer === 20) {
@@ -109,13 +109,13 @@ export class World {
 
         // Check bounds
         if (newX < 0 || newX >= this.width || newY < 0 || newY >= this.height) {
-            console.log(`Movement out of bounds: (${newX},${newY})`);
+            // console.log(`Movement out of bounds: (${newX},${newY})`);
             return false;
         }
 
         // Check collisions
         if (this.isPositionOccupied(newX, newY)) {
-            console.log(`Position occupied: (${newX},${newY})`);
+            // console.log(`Position occupied: (${newX},${newY})`);
             return false;
         }
 
@@ -128,7 +128,7 @@ export class World {
     }
 
     debugGrid() {
-        console.log('Current Grid State:');
+        // console.log('Current Grid State:');
         this.grid.forEach((entityId, key) => {
             const entity = this.entities.get(entityId);
             console.log(`${key}: ${entity?.type} (${entityId})`);

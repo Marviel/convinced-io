@@ -18,7 +18,7 @@ async function loadSprite(spriteName: string): Promise<HTMLImageElement> {
             console.log('Failed to load sprite:', `assets/sprites/${spriteName}.gif`, e);
             reject(e);
         };
-        const src = `/assets/sprites_transparent/${spriteName}.gif`;
+        const src = `/assets/sprites/${spriteName}.gif`;
         console.log('Loading sprite:', src);
         img.crossOrigin = 'anonymous';
         img.src = src;

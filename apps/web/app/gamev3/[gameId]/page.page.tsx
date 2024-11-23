@@ -60,7 +60,7 @@ export default function GamePage() {
 
     // Initialize channels
     useEffect(() => {
-        if (!params.gameId) return;
+        if (!params?.gameId) return;
 
         console.log('Initializing channels for game:', params.gameId);
 
@@ -90,7 +90,7 @@ export default function GamePage() {
             stateChannel.unsubscribe();
             actionsChannel.unsubscribe();
         }
-    }, [params.gameId]);
+    }, [params?.gameId]);
 
     // Modify the action sending functions
     const sendAction = (action: any) => {

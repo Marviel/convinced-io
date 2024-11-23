@@ -565,7 +565,7 @@ export default function Home() {
                 <ListItemText
                   primary={<span>{game._name}</span>}
                   secondary={
-                    <Box sx={{ color: '#999', mt: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ color: '#999' }}>
                         Players: {game.current_players}/{game.max_players}
                       </span>
@@ -580,7 +580,7 @@ export default function Home() {
                       <span style={{ color: '#999' }}>
                         Spectators: {game.spectators_count}
                       </span>
-                    </Box>
+                    </span>
                   }
                 />
                 <ButtonGroup variant="outlined" size="small">

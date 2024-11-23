@@ -26,7 +26,7 @@ const TILE_SIZE = 32;
 const MAP_SIZE = 50;
 const NUM_NPCS = 20;
 const INTERACTION_RADIUS = 5; // 5 tiles radius
-const AVAILABLE_SPRITES = ['nja1', 'nja2', 'mst1', 'mst2']; // Add your actual sprite names
+const AVAILABLE_SPRITES = ['syb1', 'spd1', 'thf2']; // Add all your available sprite base names
 
 const GameContainer = styled('div')({
     width: '100vw',
@@ -88,7 +88,7 @@ export default function GameRoom() {
         world.addEntity(player);
         playerRef.current = player;
 
-        // Create structures
+        // Create structures (logs)
         for (let y = 0; y < MAP_SIZE; y++) {
             for (let x = 0; x < MAP_SIZE; x++) {
                 if (Math.random() < 0.1) {
@@ -97,7 +97,10 @@ export default function GameRoom() {
                         type: 'structure',
                         components: {
                             position: { x, y },
-                            appearance: { color: '#8b4513' },
+                            appearance: { 
+                                structure: true,
+                                structureNumber: 1 + Math.floor(Math.random() * 8)
+                            },
                             collision: { solid: true },
                         },
                     };

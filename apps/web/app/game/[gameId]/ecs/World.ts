@@ -5,11 +5,48 @@ import {
     Position,
 } from './types';
 
+interface Tile {
+    baseLayer: number;  // Grass tile number
+    objectLayer?: number;  // Log tile number
+}
+
 export class World {
     private entities: Map<EntityId, Entity> = new Map();
     private grid: Map<string, EntityId> = new Map();
+    private tiles: Map<string, Tile> = new Map();
 
-    constructor(public readonly width: number, public readonly height: number) { }
+    constructor(public readonly width: number, public readonly height: number) {
+        this.generateTerrain();
+    }
+
+    private generateTerrain() {
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                const key = this.getGridKey(x, y);
+                
+                // Basic grass tile (18-26) There is no 20
+                let baseLayer = 18 + Math.floor(Math.random() * 9);
+                if (baseLayer === 20) {
+                    baseLayer = 19;
+                }
+
+                const tile: Tile = {
+                    baseLayer: baseLayer
+                };
+
+                // Add logs with low probability (1-8)
+                // if (Math.random() < 0) {
+                //     tile.objectLayer = 1 + Math.floor(Math.random() * 8);
+                // }
+
+                this.tiles.set(key, tile);
+            }
+        }
+    }
+
+    getTile(x: number, y: number): Tile | undefined {
+        return this.tiles.get(this.getGridKey(x, y));
+    }
 
     addEntity(entity: Entity) {
         this.entities.set(entity.id, entity);

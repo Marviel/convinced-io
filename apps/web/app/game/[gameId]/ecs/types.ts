@@ -18,6 +18,8 @@ export interface Appearance {
     sprite?: string;
     direction?: 'fr' | 'bk' | 'lf' | 'rt';
     isMoving?: boolean;
+    structure?: boolean;
+    structureNumber?: number;
     highlighted?: boolean;
 }
 

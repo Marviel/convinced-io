@@ -286,40 +286,42 @@ export default function Home() {
     fetchGames()
 
     // Set up real-time subscription
-    const gamesSubscription = supabase
-      .channel('game_rooms_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'game_rooms'
-        },
-        () => {
-          fetchGames()
-        }
-      )
-      .subscribe()
+    // const gamesSubscription = supabase
+    //   .channel('game_rooms_changes')
+    //   .on(
+    //     'postgres_changes',
+    //     {
+    //       event: '*',
+    //       schema: 'public',
+    //       table: 'game_rooms'
+    //     },
+    //     () => {
+    //       fetchGames()
+    //     }
+    //   )
+    //   .subscribe()
 
-    const participantsSubscription = supabase
-      .channel('game_participants_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'game_participants'
-        },
-        () => {
-          fetchGames()
-        }
-      )
-      .subscribe()
+    // const participantsSubscription = supabase
+    //   .channel('game_participants_changes')
+    //   .on(
+    //     'postgres_changes',
+    //     {
+    //       event: '*',
+    //       schema: 'public',
+    //       table: 'game_participants'
+    //     },
+    //     () => {
+    //       fetchGames()
+    //     }
+    //   )
+    //   .subscribe()
 
-    return () => {
-      gamesSubscription.unsubscribe()
-      participantsSubscription.unsubscribe()
-    }
+    // return () => {
+    //   gamesSubscription.unsubscribe()
+    //   participantsSubscription.unsubscribe()
+    // }
+    const interval = setInterval(fetchGames, 1000)
+    return () => clearInterval(interval)
   }, [])
 
   const handleCreateGame = async (gameName: string, displayName: string) => {

@@ -197,45 +197,49 @@ export default function Lobby() {
       }
     }
 
+    // Initial fetch
     fetchGameData()
 
     // Set up real-time subscriptions
-    const participantsSubscription = supabase
-      .channel('game_participants_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'game_participants',
-          filter: `game_room_id=eq.${gameId}`
-        },
-        () => {
-          fetchGameData()
-        }
-      )
-      .subscribe()
+    // const participantsSubscription = supabase
+    //   .channel('game_participants_changes')
+    //   .on(
+    //     'postgres_changes',
+    //     {
+    //       event: '*',
+    //       schema: 'public',
+    //       table: 'game_participants',
+    //       filter: `game_room_id=eq.${gameId}`
+    //     },
+    //     () => {
+    //       fetchGameData()
+    //     }
+    //   )
+    //   .subscribe()
+    // Set up polling interval
+    // const gameRoomSubscription = supabase
+    //   .channel('game_room_changes')
+    //   .on(
+    //     'postgres_changes',
+    //     {
+    //       event: '*',
+    //       schema: 'public',
+    //       table: 'game_rooms',
+    //       filter: `id=eq.${gameId}`
+    //     },
+    //     () => {
+    //       fetchGameData()
+    //     }
+    //   )
+    //   .subscribe()
+    const interval = setInterval(fetchGameData, 1000)
 
-    const gameRoomSubscription = supabase
-      .channel('game_room_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'game_rooms',
-          filter: `id=eq.${gameId}`
-        },
-        () => {
-          fetchGameData()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      participantsSubscription.unsubscribe()
-      gameRoomSubscription.unsubscribe()
-    }
+    // return () => {
+    //   participantsSubscription.unsubscribe()
+    //   gameRoomSubscription.unsubscribe()
+    // }
+    // Cleanup
+    return () => clearInterval(interval)
   }, [gameId, router])
 
   const handleSpriteChange = async (sprite: string) => {
@@ -568,7 +572,7 @@ export default function Lobby() {
           <Divider sx={{ my: 3, backgroundColor: '#333' }} />
 
           <Typography variant="h5" gutterBottom>
-            Game Settings {!currentUser?.is_host && '(Host Only)'}
+            Game Settings {!currentUser?.is_host && '(View Only)'}
           </Typography>
 
           <Box>
@@ -584,12 +588,15 @@ export default function Lobby() {
               step={1}
               marks
               sx={{
-                color: '#1976d2',
+                color: currentUser?.is_host ? '#1976d2' : '#666',
                 '& .MuiSlider-mark': {
                   backgroundColor: '#666',
                 },
                 '& .MuiSlider-rail': {
                   backgroundColor: '#444',
+                },
+                '& .Mui-disabled': {
+                  color: '#666',
                 }
               }}
             />
@@ -600,8 +607,12 @@ export default function Lobby() {
             '& .MuiOutlinedInput-root': { 
               color: '#fff',
               '& fieldset': { borderColor: '#666' },
-              '&:hover fieldset': { borderColor: '#999' },
-              '&.Mui-focused fieldset': { borderColor: '#fff' },
+              '&:hover fieldset': { borderColor: currentUser?.is_host ? '#999' : '#666' },
+              '&.Mui-focused fieldset': { borderColor: currentUser?.is_host ? '#fff' : '#666' },
+              '&.Mui-disabled': {
+                color: '#fff',
+                '& fieldset': { borderColor: '#666' },
+              }
             }
           }}>
             <InputLabel>Difficulty</InputLabel>

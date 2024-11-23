@@ -28,6 +28,8 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
+import { supabase } from './sdk/supabase';
+
 const StyledContainer = styled(Container)({
   display: 'flex',
   flexDirection: 'column',

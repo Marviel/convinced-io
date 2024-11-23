@@ -27,6 +27,8 @@ import GroupIcon from '@mui/icons-material/Group'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { createClient } from '@supabase/supabase-js'
 
+import { supabase } from './sdk/supabase';
+
 const StyledContainer = styled(Container)({
   display: 'flex',
   flexDirection: 'column',

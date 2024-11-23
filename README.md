@@ -18,3 +18,6 @@ To develop all apps and packages, run the following command:
 cd my-turborepo
 npm run  dev
 ```
+
+
+`npm run sb start` to start the Supabase server.

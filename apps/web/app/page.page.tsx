@@ -1,32 +1,31 @@
 'use client';
 
-import React from 'react';
-
-import { useRouter } from 'next/navigation';
-
-import AddIcon from '@mui/icons-material/Add';
-import GroupIcon from '@mui/icons-material/Group';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import {
-  Avatar,
+import React from 'react'
+import { 
+  Container, 
+  Typography, 
+  Button, 
+  Paper, 
   Box,
-  Button,
-  ButtonGroup,
-  Chip,
-  Container,
+  TextField,
   Dialog,
-  DialogActions,
-  DialogContent,
   DialogTitle,
+  DialogContent,
+  DialogActions,
   List,
   ListItem,
-  ListItemAvatar,
   ListItemText,
-  Paper,
-  TextField,
-  Typography,
-} from '@mui/material';
-import { styled } from '@mui/material/styles';
+  ListItemAvatar,
+  Avatar,
+  Chip,
+  ButtonGroup,
+} from '@mui/material'
+import { useRouter } from 'next/navigation'
+import { styled } from '@mui/material/styles'
+import AddIcon from '@mui/icons-material/Add'
+import GroupIcon from '@mui/icons-material/Group'
+import VisibilityIcon from '@mui/icons-material/Visibility'
+import { createClient } from '@supabase/supabase-js'
 
 const StyledContainer = styled(Container)({
   display: 'flex',
@@ -79,6 +78,11 @@ interface Game {
   spectators_count?: number;
 }
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+)
+
 interface CreateGameDialogProps {
   open: boolean;
   onClose: () => void;
@@ -102,8 +106,8 @@ const CreateGameDialog = ({ open, onClose, onSubmit }: CreateGameDialogProps) =>
   }, [onClose])
 
   return (
-    <Dialog
-      open={open}
+    <Dialog 
+      open={open} 
       onClose={handleClose}
       slotProps={{
         backdrop: {
@@ -136,13 +140,13 @@ const CreateGameDialog = ({ open, onClose, onSubmit }: CreateGameDialogProps) =>
         />
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        <Button
+        <Button 
           onClick={handleClose}
           sx={{ color: '#fff' }}
         >
           Cancel
         </Button>
-        <Button
+        <Button 
           onClick={handleSubmit}
           variant="contained"
           disabled={!gameName.trim() || !displayName.trim()}
@@ -177,8 +181,8 @@ const JoinGameDialog = ({ open, onClose, onSubmit }: JoinGameDialogProps) => {
   }, [onClose])
 
   return (
-    <Dialog
-      open={open}
+    <Dialog 
+      open={open} 
       onClose={handleClose}
       slotProps={{
         backdrop: {
@@ -211,13 +215,13 @@ const JoinGameDialog = ({ open, onClose, onSubmit }: JoinGameDialogProps) => {
         />
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        <Button
+        <Button 
           onClick={handleClose}
           sx={{ color: '#fff' }}
         >
           Cancel
         </Button>
-        <Button
+        <Button 
           onClick={handleSubmit}
           variant="contained"
           disabled={!gameId.trim() || !displayName.trim()}
@@ -426,8 +430,8 @@ export default function Home() {
       // 4. Update current_players count
       const { error: updateError } = await supabase
         .from('game_rooms')
-        .update({
-          current_players: gameRoom.current_players + 1
+        .update({ 
+          current_players: gameRoom.current_players + 1 
         })
         .eq('id', gameId)
 

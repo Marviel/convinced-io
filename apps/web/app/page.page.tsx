@@ -25,7 +25,6 @@ import { styled } from '@mui/material/styles'
 import AddIcon from '@mui/icons-material/Add'
 import GroupIcon from '@mui/icons-material/Group'
 import VisibilityIcon from '@mui/icons-material/Visibility'
-import { createClient } from '@supabase/supabase-js'
 
 import { supabase } from './sdk/supabase';
 
@@ -79,11 +78,6 @@ interface Game {
   status: string;
   spectators_count?: number;
 }
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-)
 
 interface CreateGameDialogProps {
   open: boolean;

@@ -62,14 +62,12 @@ export class GameManager {
         const game = this.games.get(gameId);
         if (!game) return;
 
-        game.lastActiveTime = Date.now();
-
         switch (action.type) {
             case 'MOVE':
                 systems.moveSystem(game.world, action);
                 break;
             case 'CHAT':
-                // Process chat/speech actions
+                this.processChatAction(game.world, action);
                 break;
             case 'INTERACT':
                 // Process interaction actions
@@ -151,7 +149,8 @@ export class GameManager {
         return {
             entities: Array.from(world.getAllEntities()).map(entity => [entity.id, entity]),
             grid: Array.from(world.getGrid()),
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            messages: world.getMessageLog()
         };
     }
 
@@ -170,6 +169,74 @@ export class GameManager {
         for (const connection of game.connections) {
             console.log('Sending message to connection');
             connection.send(message);
+        }
+    }
+
+    private processChatAction(world: World, action: Action) {
+        console.log(`Processing chat action: ${action.payload.message}`);
+        // Find the speaking player
+        const player = world.getAllEntities().find(e => e.id === 'player');
+        if (!player?.components.position || !player.components.interactable) return;
+
+        const playerPos = player.components.position;
+        const interactionRadius = player.components.interactable.radius;
+
+        const now = Date.now();
+
+        // Add message to world's message log
+        world.addMessage({
+            entityId: player.id,
+            entityType: 'player',
+            message: action.payload.message,
+            timestamp: now,
+            position: playerPos
+        });
+
+        // Set player's speech bubble with expiry time
+        player.components.speech = {
+            message: action.payload.message,
+            expiryTime: now + 10000, // 10 seconds from now
+            fadeStartTime: now + 8000 // Start fading 8 seconds from now
+        };
+
+        // Find NPCs in range
+        for (const entity of world.getAllEntities()) {
+            if (entity.type !== 'npc') continue;
+
+            const npcPos = entity.components.position;
+            if (!npcPos) continue;
+
+            // Calculate distance
+            const dx = npcPos.x - playerPos.x;
+            const dy = npcPos.y - playerPos.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // If NPC is in range, make them process the message
+            if (distance <= interactionRadius) {
+                const ai = entity.components.ai;
+                if (!ai) continue;
+
+                // Show thinking indicator
+                entity.components.speech = {
+                    message: "!",
+                    expiryTime: now + 3000,
+                    isThinking: true,
+                    thinkingState: 'listening'
+                };
+
+                // Stop the NPC
+                if (entity.components.movement) {
+                    entity.components.movement.dx = 0;
+                    entity.components.movement.dy = 0;
+                }
+
+                // Set processing state
+                ai.processingMessage = {
+                    message: action.payload.message,
+                    fromEntity: player.id,
+                    processStartTime: now
+                };
+            }
         }
     }
 } 

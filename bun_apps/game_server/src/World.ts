@@ -122,6 +122,8 @@ export class World {
     }
 
     private createInitialStructures() {
+
+
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
                 if (Math.random() < 0.1 && !this.isPositionOccupied(x, y)) {
@@ -133,6 +135,22 @@ export class World {
                             appearance: {
                                 structure: true,
                                 structureNumber: 1 + Math.floor(Math.random() * 8)
+                            },
+                            collision: { solid: true }
+                        }
+                    };
+                    this.addEntity(structure);
+                }
+
+                if (x === 0 && y === 0) {
+                    const structure: Entity = {
+                        id: `structure-${x}-${y}`,
+                        type: 'structure',
+                        components: {
+                            position: { x, y },
+                            appearance: {
+                                structure: true,
+                                structureNumber: 30
                             },
                             collision: { solid: true }
                         }

@@ -29,12 +29,24 @@ export interface Interactable {
 export interface AI {
     type: 'random';
     nextMoveTime: number;
+    personality?: string;
+    processingMessage?: {
+        message: string;
+        fromEntity: string;
+        processStartTime: number;
+    };
 }
 
 export interface PathfindingComponent {
     targetPosition?: { x: number; y: number };
     currentPath?: { x: number; y: number }[];
     pathIndex?: number;
+}
+
+export interface Speech {
+    message: string;
+    expiryTime: number;
+    isThinking?: boolean;
 }
 
 export type ComponentTypes = {
@@ -45,6 +57,7 @@ export type ComponentTypes = {
     ai: AI;
     interactable: Interactable;
     pathfinding: PathfindingComponent;
+    speech: Speech;
 };
 
 export type ComponentType = keyof ComponentTypes;

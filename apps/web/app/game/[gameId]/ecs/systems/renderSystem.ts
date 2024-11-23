@@ -79,6 +79,7 @@ export function renderSystem(world: World, context: RenderContext) {
         const pos = entity.components.position;
         const appearance = entity.components.appearance;
         const pathfinding = entity.components.pathfinding;
+        const speech = entity.components.speech;
         if (!pos || !appearance) continue;
 
         const x = (pos.x - mapSize / 2) * tileSize + tileSize / 2;
@@ -161,6 +162,61 @@ export function renderSystem(world: World, context: RenderContext) {
                 tileSize - 1,
                 tileSize - 1
             );
+        }
+
+        // Draw speech bubble if entity has speech
+        if (speech) {
+            ctx.save();
+
+            // Special handling for thinking indicator
+            if (speech.isThinking) {
+                const size = tileSize / 2;
+                ctx.fillStyle = 'yellow';
+                ctx.beginPath();
+                ctx.arc(x, y - tileSize - size, size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = 'black';
+                ctx.font = 'bold ${size}px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('!', x, y - tileSize - size);
+            } else {
+                // Speech bubble background
+                const padding = 10;
+                const fontSize = 14;
+                ctx.font = `${fontSize}px Arial`;
+                const textWidth = ctx.measureText(speech.message).width;
+                const bubbleWidth = textWidth + padding * 2;
+                const bubbleHeight = fontSize + padding * 2;
+                const bubbleX = x - bubbleWidth / 2;
+                const bubbleY = y - tileSize - bubbleHeight - 10;
+
+                // Draw bubble background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.beginPath();
+                ctx.roundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, 8);
+                ctx.fill();
+
+                // Draw pointer
+                ctx.beginPath();
+                ctx.moveTo(x - 8, bubbleY + bubbleHeight);
+                ctx.lineTo(x + 8, bubbleY + bubbleHeight);
+                ctx.lineTo(x, bubbleY + bubbleHeight + 8);
+                ctx.closePath();
+                ctx.fill();
+
+                // Draw text
+                ctx.fillStyle = '#000';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(
+                    speech.message,
+                    x,
+                    bubbleY + bubbleHeight / 2
+                );
+            }
+
+            ctx.restore();
         }
     }
 

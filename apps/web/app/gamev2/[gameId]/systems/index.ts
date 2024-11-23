@@ -16,6 +16,7 @@ export const clientSystems = {
     // Optimistic systems
     moveSystem,
     pathfindingSystem,
+    aiSystem,
 };
 
 // Authoritative systems (must run on server)

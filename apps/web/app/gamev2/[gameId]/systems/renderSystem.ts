@@ -1,8 +1,13 @@
-import { defineQuery } from 'bitecs';
+import {
+    defineQuery,
+    hasComponent,
+} from 'bitecs';
 
 import {
     Appearance,
     EntityType,
+    Interactable,
+    Pathfinding,
     Position,
     Speech,
 } from '../components';
@@ -64,6 +69,25 @@ async function loadTile(tileNumber: number): Promise<HTMLImageElement> {
     });
 }
 
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = words[0];
+
+    for (let i = 1; i < words.length; i++) {
+        const word = words[i];
+        const width = ctx.measureText(currentLine + ' ' + word).width;
+        if (width < maxWidth) {
+            currentLine += ' ' + word;
+        } else {
+            lines.push(currentLine);
+            currentLine = word;
+        }
+    }
+    lines.push(currentLine);
+    return lines;
+}
+
 function drawSpeechBubble(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -74,17 +98,24 @@ function drawSpeechBubble(
 ) {
     ctx.save();
 
-    // Measure text
-    ctx.font = '14px Arial';
-    const metrics = ctx.measureText(text);
-    const textWidth = metrics.width;
-    const textHeight = 20;
+    // Scale down the text and bubble size
+    const scale = 1 / 32; // Inverse of tile size to make bubbles smaller
+    ctx.scale(scale, scale);
 
-    // Calculate bubble dimensions
-    const bubbleWidth = textWidth + SPEECH_BUBBLE_PADDING * 2;
+    // Measure text (in scaled space)
+    ctx.font = '14px Arial';
+    const maxWidth = 200;
+    const lineHeight = 20;
+
+    // Wrap text and calculate dimensions
+    const lines = wrapText(ctx, text, maxWidth);
+    const textHeight = lines.length * lineHeight;
+
+    // Calculate bubble dimensions (in scaled space)
+    const bubbleWidth = maxWidth + SPEECH_BUBBLE_PADDING * 2;
     const bubbleHeight = textHeight + SPEECH_BUBBLE_PADDING * 2;
-    const bubbleX = x - bubbleWidth / 2;
-    const bubbleY = y - bubbleHeight - 20; // Above the entity
+    const bubbleX = (x / scale) - bubbleWidth / 2;
+    const bubbleY = (y / scale) - bubbleHeight - 20; // Above the entity
 
     // Draw bubble background
     ctx.fillStyle = 'white';
@@ -103,32 +134,37 @@ function drawSpeechBubble(
 
     // Draw tail
     ctx.beginPath();
-    ctx.moveTo(x - 5, bubbleY + bubbleHeight);
-    ctx.lineTo(x, bubbleY + bubbleHeight + 10);
-    ctx.lineTo(x + 5, bubbleY + bubbleHeight);
+    ctx.moveTo(bubbleX + bubbleWidth / 2 - 5, bubbleY + bubbleHeight);
+    ctx.lineTo(bubbleX + bubbleWidth / 2, bubbleY + bubbleHeight + 10);
+    ctx.lineTo(bubbleX + bubbleWidth / 2 + 5, bubbleY + bubbleHeight);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
     // Draw text
     ctx.fillStyle = 'black';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
 
     if (isThinking) {
         // Draw thinking animation
         const thinkingDots = THINKING_DOTS[Math.floor(thinkingState) % THINKING_DOTS.length];
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.fillText(
             thinkingDots ?? '',
-            x,
+            bubbleX + bubbleWidth / 2,
             bubbleY + bubbleHeight / 2
         );
     } else {
-        ctx.fillText(
-            text,
-            x,
-            bubbleY + bubbleHeight / 2
-        );
+        // Draw wrapped text
+        lines.forEach((line, index) => {
+            ctx.fillText(
+                line,
+                bubbleX + SPEECH_BUBBLE_PADDING,
+                bubbleY + SPEECH_BUBBLE_PADDING + (index * lineHeight)
+            );
+        });
     }
 
     ctx.restore();
@@ -173,6 +209,31 @@ function drawEntity(
         }
     }
 
+    ctx.restore();
+}
+
+function drawStar(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, alpha: number) {
+    const time = performance.now() / 1000;
+    const scale = 0.8 + Math.sin(time * 2) * 0.2;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+
+    for (let i = 0; i < 8; i++) {
+        const radius = i % 2 === 0 ? size : size / 2;
+        const angle = (i * Math.PI) / 4;
+        if (i === 0) {
+            ctx.moveTo(radius * Math.cos(angle), radius * Math.sin(angle));
+        } else {
+            ctx.lineTo(radius * Math.cos(angle), radius * Math.sin(angle));
+        }
+    }
+
+    ctx.closePath();
+    ctx.fill();
     ctx.restore();
 }
 
@@ -292,6 +353,80 @@ export function renderSystem(world: WorldManager, { ctx, width, height, tileSize
             isThinking,
             thinkingState
         );
+    }
+
+    // Draw paths and destinations for NPCs
+    for (const eid of characters) {
+        if (EntityType.type[eid] !== 1) continue; // Skip non-NPCs
+
+        const pos = Position.x[eid] !== undefined && Position.y[eid] !== undefined ?
+            { x: Position.x[eid], y: Position.y[eid] } : null;
+
+        if (!pos) continue;
+
+        // Draw path if entity has one
+        if (Pathfinding.hasTarget[eid] && Pathfinding.pathIndex[eid] !== undefined) {
+            const path = world.getPath(Pathfinding.pathIndex[eid]);
+            if (path) {
+                // Draw connecting lines with gradient
+                ctx.beginPath();
+                ctx.strokeStyle = '#00b894';
+                ctx.lineWidth = 0.1;
+                ctx.globalAlpha = 0.3;
+
+                ctx.moveTo(pos.x + 0.5, pos.y + 0.5);
+
+                path.forEach(point => {
+                    ctx.lineTo(point.x + 0.5, point.y + 0.5);
+                });
+
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+
+                // Draw dots at each path point
+                path.forEach(point => {
+                    ctx.beginPath();
+                    ctx.arc(point.x + 0.5, point.y + 0.5, 0.1, 0, Math.PI * 2);
+                    ctx.fillStyle = '#00b894';
+                    ctx.globalAlpha = 0.5;
+                    ctx.fill();
+                });
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // Draw destination marker
+        if (Pathfinding.hasTarget[eid]) {
+            const targetX = Pathfinding.targetX[eid];
+            const targetY = Pathfinding.targetY[eid];
+            if (targetX !== undefined && targetY !== undefined) {
+                ctx.fillStyle = '#00b894';
+                drawStar(ctx, targetX + 0.5, targetY + 0.5, 0.4, 0.5);
+            }
+        }
+    }
+
+    // Draw player interaction radius
+    const players = characterQuery(world.world);
+    for (const eid of players) {
+        if (EntityType.type[eid] !== 0) continue; // Skip non-players
+
+        const pos = Position.x[eid] !== undefined && Position.y[eid] !== undefined ?
+            { x: Position.x[eid], y: Position.y[eid] } : null;
+
+        if (!pos || !hasComponent(world.world, Interactable, eid)) continue;
+
+        // Handle undefined radius with default value
+        const radius = Interactable.radius[eid] ?? 5;
+
+        // Draw interaction circle
+        ctx.beginPath();
+        ctx.arc(pos.x + 0.5, pos.y + 0.5, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 0.1;
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.fill();
     }
 
     ctx.restore();

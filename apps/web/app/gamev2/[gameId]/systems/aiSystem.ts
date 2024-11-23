@@ -11,10 +11,12 @@ import {
     Position,
     Speech,
 } from '../components';
+import { findPath } from '../utils/pathfinder';
 import { WorldManager } from '../world/WorldManager';
 
 const THINKING_TIME = 2000; // Time to process a message in ms
 
+// Define query for AI entities
 const aiQuery = defineQuery([AI, Position, Movement, Pathfinding]);
 
 async function generateMessage(): Promise<string> {
@@ -96,23 +98,19 @@ export function aiSystem(world: WorldManager, currentTime: number) {
         // Initialize values if undefined
         AI.nextMoveTime[eid] = AI.nextMoveTime[eid] ?? 0;
         AI.processingMessage[eid] = AI.processingMessage[eid] ?? 0;
-        AI.personalityIndex[eid] = AI.personalityIndex[eid] ?? 0;
-        Pathfinding.hasTarget[eid] = Pathfinding.hasTarget[eid] ?? 0;
+        AI.processingStartTime[eid] = AI.processingStartTime[eid] ?? 0;
+        AI.processingMessageIndex[eid] = AI.processingMessageIndex[eid] ?? 0;
         Position.x[eid] = Position.x[eid] ?? 0;
         Position.y[eid] = Position.y[eid] ?? 0;
-        Pathfinding.targetX[eid] = Pathfinding.targetX[eid] ?? 0;
-        Pathfinding.targetY[eid] = Pathfinding.targetY[eid] ?? 0;
+        Pathfinding.hasTarget[eid] = Pathfinding.hasTarget[eid] ?? 0;
 
         // Handle message processing
         if (AI.processingMessage[eid]) {
             // Show thinking indicator
             const messageIndex = world.addMessage("!");
-
-            // Add Speech component if it doesn't exist
             if (!hasComponent(world.world, Speech, eid)) {
                 addComponent(world.world, Speech, eid);
             }
-
             Speech.messageIndex[eid] = messageIndex;
             Speech.expiryTime[eid] = currentTime + 1000;
             Speech.isThinking[eid] = 1;
@@ -123,13 +121,16 @@ export function aiSystem(world: WorldManager, currentTime: number) {
             Movement.dy[eid] = 0;
 
             // After thinking time, process message
-            if (currentTime - AI.nextMoveTime[eid] >= THINKING_TIME) {
-                const personality = world.personalityPool[AI.personalityIndex[eid] || 0] || "A friendly NPC";
-                const currentMessageIndex = Speech.messageIndex[eid] || 0;
-                const message = world.getMessage(currentMessageIndex) || "";
+            if (currentTime - AI.processingStartTime[eid] >= THINKING_TIME) {
+                const personality = world.personalityPool[AI.personalityIndex[eid]] || "A friendly NPC";
+                const message = world.getMessage(AI.processingMessageIndex[eid]) || "";
 
                 processMessage(personality, message).then(response => {
                     const responseMessageIndex = world.addMessage(response.message);
+
+                    if (!hasComponent(world.world, Speech, eid)) {
+                        addComponent(world.world, Speech, eid);
+                    }
                     Speech.messageIndex[eid] = responseMessageIndex;
                     Speech.expiryTime[eid] = currentTime + 3000;
 
@@ -137,11 +138,13 @@ export function aiSystem(world: WorldManager, currentTime: number) {
                     Speech.thinkingState[eid] = isChangingDirection ? 2 : 3; // changed : notChanged
 
                     if (response.destinationChange) {
+                        console.log(`Changing destination from ${Position.x[eid]},${Position.y[eid]} to ${response.destinationChange.x},${response.destinationChange.y}`);
                         setTimeout(() => {
                             if (response.destinationChange) {
                                 Pathfinding.targetX[eid] = response.destinationChange.x;
                                 Pathfinding.targetY[eid] = response.destinationChange.y;
                                 Pathfinding.hasTarget[eid] = 1;
+                                Pathfinding.pathIndex[eid] = undefined; // Clear existing path
                             }
                         }, 1000);
                     }
@@ -154,8 +157,59 @@ export function aiSystem(world: WorldManager, currentTime: number) {
             continue; // Skip normal movement while processing
         }
 
-        // Pick initial destination if none exists
-        if (!Pathfinding.hasTarget[eid]) {
+        // Always try to update path if we have a target but no path
+        if (Pathfinding.hasTarget[eid] && !Pathfinding.pathIndex[eid]) {
+            const path = findPath(
+                { x: Position.x[eid], y: Position.y[eid] },
+                { x: Pathfinding.targetX[eid], y: Pathfinding.targetY[eid] },
+                world.width,
+                world.height,
+                (x, y) => !world.isPositionOccupied(x, y)
+            );
+
+            if (path.length > 0) {
+                const pathIndex = world.addPath(path);
+                Pathfinding.pathIndex[eid] = pathIndex;
+            } else {
+                // If no path found, clear target
+                Pathfinding.hasTarget[eid] = 0;
+            }
+        }
+
+        // Move along path
+        if (Pathfinding.hasTarget[eid] && Pathfinding.pathIndex[eid] !== undefined) {
+            const path = world.getPath(Pathfinding.pathIndex[eid]);
+            if (path && path.length > 0) {
+                const nextPoint = path[0];
+                Movement.dx[eid] = Math.sign(nextPoint.x - Position.x[eid]);
+                Movement.dy[eid] = Math.sign(nextPoint.y - Position.y[eid]);
+
+                // If we've reached the next point, remove it from the path
+                if (Position.x[eid] === nextPoint.x && Position.y[eid] === nextPoint.y) {
+                    path.shift();
+                    if (path.length === 0) {
+                        // Reached destination
+                        Pathfinding.hasTarget[eid] = 0;
+                        Pathfinding.pathIndex[eid] = 0; // Changed from undefined to 0
+                        Movement.dx[eid] = 0;
+                        Movement.dy[eid] = 0;
+
+                        // Generate arrival message
+                        generateMessage().then(message => {
+                            const messageIndex = world.addMessage(message);
+                            if (!hasComponent(world.world, Speech, eid)) {
+                                addComponent(world.world, Speech, eid);
+                            }
+                            Speech.messageIndex[eid] = messageIndex;
+                            Speech.expiryTime[eid] = currentTime + 3000;
+                        });
+                    }
+                }
+            }
+        }
+
+        // Pick new destination if none exists
+        if (!Pathfinding.hasTarget[eid] && currentTime >= AI.nextMoveTime[eid]) {
             let targetX, targetY;
             let attempts = 0;
             do {
@@ -169,39 +223,8 @@ export function aiSystem(world: WorldManager, currentTime: number) {
                 Pathfinding.targetY[eid] = targetY;
                 Pathfinding.hasTarget[eid] = 1;
             }
+
+            AI.nextMoveTime[eid] = currentTime + 1000; // Wait a second before trying again
         }
-
-        // Move towards target
-        if (Pathfinding.hasTarget[eid]) {
-            const dx = Math.sign(Pathfinding.targetX[eid] - Position.x[eid]);
-            const dy = Math.sign(Pathfinding.targetY[eid] - Position.y[eid]);
-
-            Movement.dx[eid] = dx;
-            Movement.dy[eid] = dy;
-
-            // Check if reached target
-            if (Position.x[eid] === Pathfinding.targetX[eid] &&
-                Position.y[eid] === Pathfinding.targetY[eid]) {
-
-                Pathfinding.hasTarget[eid] = 0;
-                Movement.dx[eid] = 0;
-                Movement.dy[eid] = 0;
-
-                // Generate arrival message
-                generateMessage().then(message => {
-                    const messageIndex = world.addMessage(message);
-
-                    // Add Speech component if it doesn't exist
-                    if (!hasComponent(world.world, Speech, eid)) {
-                        addComponent(world.world, Speech, eid);
-                    }
-
-                    Speech.messageIndex[eid] = messageIndex;
-                    Speech.expiryTime[eid] = currentTime + 3000;
-                });
-            }
-        }
-
-        AI.nextMoveTime[eid] = currentTime + 200;
     }
 } 

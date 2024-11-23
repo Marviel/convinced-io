@@ -33,7 +33,7 @@ import Image from 'next/image'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import CheckIcon from '@mui/icons-material/Check'
 import VisibilityIcon from '@mui/icons-material/Visibility'
-import { supabase } from './../sdk/supabase';
+import { supabase } from '../sdk/supabase';
 
 const StyledContainer = styled(Container)({
   display: 'flex',

@@ -184,6 +184,11 @@ export default function Lobby() {
           setSelectedSprite(currentUserData.sprite_name)
           setIsReady(currentUserData.is_ready)
         }
+
+        // If game has started, redirect to game
+        if (gameRoom.status === 'in_progress') {
+          router.push(`/game/${gameId}`)
+        }
       } catch (error) {
         console.error('Error fetching game data:', error)
       } finally {
@@ -210,20 +215,42 @@ export default function Lobby() {
       )
       .subscribe()
 
+    const gameRoomSubscription = supabase
+      .channel('game_room_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'game_rooms',
+          filter: `id=eq.${gameId}`
+        },
+        () => {
+          fetchGameData()
+        }
+      )
+      .subscribe()
+
     return () => {
       participantsSubscription.unsubscribe()
+      gameRoomSubscription.unsubscribe()
     }
-  }, [gameId])
+  }, [gameId, router])
 
   const handleSpriteChange = async (sprite: string) => {
-    if (!currentUser || !gameId) return
-
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session?.user?.id || !gameId) {
+        console.error('Error getting session:', sessionError)
+        return
+      }
+
       const { error } = await supabase
         .from('game_participants')
         .update({ sprite_name: sprite })
         .eq('game_room_id', gameId)
-        .eq('user_id', currentUser.id)
+        .eq('user_id', session.user.id)
 
       if (error) throw error
       setSelectedSprite(sprite)
@@ -233,17 +260,32 @@ export default function Lobby() {
   }
 
   const handleReadyToggle = async () => {
-    if (!currentUser || !gameId) return
-
     try {
-      console.log(currentUser.id)
-      const { error } = await supabase
+      // Get current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError) {
+        console.error('Error getting session:', sessionError)
+        return
+      }
+
+      if (!session?.user?.id || !gameId) {
+        console.error('No user session or game ID')
+        return
+      }
+
+      // Update ready status
+      const { error: updateError } = await supabase
         .from('game_participants')
         .update({ is_ready: !isReady })
         .eq('game_room_id', gameId)
-        .eq('user_id', currentUser.id)
+        .eq('user_id', session.user.id)
 
-      if (error) throw error
+      if (updateError) {
+        console.error('Error updating ready status:', updateError)
+        return
+      }
+
       setIsReady(!isReady)
     } catch (error) {
       console.error('Error updating ready status:', error)
@@ -251,9 +293,27 @@ export default function Lobby() {
   }
 
   const handleSettingsChange = async (settings: Partial<GameSettings>) => {
-    if (!currentUser?.is_host || !gameId) return
-
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session?.user?.id || !gameId) {
+        console.error('Error getting session:', sessionError)
+        return
+      }
+
+      // Verify user is host
+      const { data: participant, error: participantError } = await supabase
+        .from('game_participants')
+        .select('is_host')
+        .eq('game_room_id', gameId)
+        .eq('user_id', session.user.id)
+        .single()
+
+      if (participantError || !participant?.is_host) {
+        console.error('User is not host')
+        return
+      }
+
       const { error } = await supabase
         .from('game_rooms')
         .update(settings)
@@ -267,18 +327,45 @@ export default function Lobby() {
   }
 
   const handleStartGame = async () => {
-    if (!currentUser?.is_host || !gameId) return
-
-    const allPlayersReady = players
-      .filter(p => !p.is_spectator && !p.is_host)
-      .every(p => p.is_ready)
-
-    if (!allPlayersReady) {
-      alert('All players must be ready to start the game')
-      return
-    }
-
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session?.user?.id || !gameId) {
+        console.error('Error getting session:', sessionError)
+        return
+      }
+
+      // Verify user is host
+      const { data: participant, error: participantError } = await supabase
+        .from('game_participants')
+        .select('is_host')
+        .eq('game_room_id', gameId)
+        .eq('user_id', session.user.id)
+        .single()
+
+      if (participantError || !participant?.is_host) {
+        console.error('User is not host')
+        return
+      }
+
+      // Check if all players are ready
+      const { data: players, error: playersError } = await supabase
+        .from('game_participants')
+        .select('*')
+        .eq('game_room_id', gameId)
+        .eq('is_spectator', false)
+
+      if (playersError) throw playersError
+
+      const allPlayersReady = players
+        .filter(p => !p.is_host)
+        .every(p => p.is_ready)
+
+      if (!allPlayersReady) {
+        alert('All players must be ready to start the game')
+        return
+      }
+
       const { error } = await supabase
         .from('game_rooms')
         .update({ status: 'in_progress' })

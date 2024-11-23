@@ -1,4 +1,3 @@
-//@ts-nocheck
 import { World } from '../World';
 
 const spriteCache = new Map<string, HTMLImageElement>();
@@ -94,6 +93,7 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
         }
     }
     lines.push(currentLine);
+    // @ts-ignore
     return lines;
 }
 
@@ -216,6 +216,7 @@ export function renderSystem(world: World, context: RenderContext) {
             if (path.length > 0) {
                 // Draw connecting lines with gradient
                 ctx.beginPath();
+                // @ts-ignore
                 ctx.strokeStyle = appearance.color;
                 ctx.lineWidth = 2;
                 ctx.globalAlpha = 0.3;
@@ -239,6 +240,7 @@ export function renderSystem(world: World, context: RenderContext) {
                     const pathY = (point.y - mapSize / 2) * tileSize + tileSize / 2;
                     ctx.beginPath();
                     ctx.arc(pathX, pathY, 2, 0, Math.PI * 2);
+                    // @ts-ignore
                     ctx.fillStyle = appearance.color;
                     ctx.globalAlpha = 0.5;
                     ctx.fill();
@@ -252,6 +254,7 @@ export function renderSystem(world: World, context: RenderContext) {
             const targetX = (pathfinding.targetPosition.x - mapSize / 2) * tileSize + tileSize / 2;
             const targetY = (pathfinding.targetPosition.y - mapSize / 2) * tileSize + tileSize / 2;
 
+            // @ts-ignore
             ctx.fillStyle = appearance.color;
             drawStar(ctx, targetX, targetY, tileSize / 2, 0.5);
         }

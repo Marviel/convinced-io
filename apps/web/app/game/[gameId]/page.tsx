@@ -1,35 +1,52 @@
 'use client';
 
 import {
-  useEffect,
-  useRef,
-  useState,
+    useEffect,
+    useRef,
+    useState,
 } from 'react';
 
 import { styled } from '@mui/material/styles';
 
 import {
-  aiSystem,
-  moveSystem,
+    aiSystem,
+    interactionSystem,
+    moveSystem,
+    type MoveSystemInput,
+    type RenderContext,
+    renderSystem,
 } from './ecs/systems';
 import { Entity } from './ecs/types';
 import { World } from './ecs/World';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
+import { NetworkManager } from './network/NetworkManager';
 
 // Constants
 const TILE_SIZE = 32;
 const MAP_SIZE = 50;
 const NUM_NPCS = 20;
+const INTERACTION_RADIUS = 5; // 5 tiles radius
 
 const GameContainer = styled('div')({
     width: '100vw',
     height: '100vh',
     overflow: 'hidden',
     backgroundColor: '#000',
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
 });
 
 const GameCanvas = styled('canvas')({
     position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    imageRendering: 'pixelated',
 });
 
 export default function GameRoom() {
@@ -38,6 +55,7 @@ export default function GameRoom() {
     const playerRef = useRef<Entity>();
     const lastTimeRef = useRef<number>(0);
     const [initialized, setInitialized] = useState(false);
+    const networkManager = useRef<NetworkManager>();
 
     // Initialize world
     useEffect(() => {
@@ -58,6 +76,7 @@ export default function GameRoom() {
                     moveInterval: 100  // Can move every 100ms (10 times per second)
                 },
                 collision: { solid: true },
+                interactable: { radius: INTERACTION_RADIUS },
             },
         };
         world.addEntity(player);
@@ -110,15 +129,17 @@ export default function GameRoom() {
             world.addEntity(npc);
         }
 
+        networkManager.current = new NetworkManager(
+            worldRef.current,
+            playerRef.current!.id
+        );
+
         setInitialized(true);
     }, [initialized]);
 
-    // Handle keyboard controls
-    useKeyboardControls((dx, dy) => {
-        if (playerRef.current?.components.movement) {
-            playerRef.current.components.movement.dx = dx;
-            playerRef.current.components.movement.dy = dy;
-        }
+    // Modify keyboard controls to dispatch actions
+    useKeyboardControls((action) => {
+        networkManager.current?.dispatchAction(action);
     });
 
     // Game loop
@@ -130,65 +151,28 @@ export default function GameRoom() {
             const delta = lastTimeRef.current ? (timestamp - lastTimeRef.current) / 1000 : 0;
             lastTimeRef.current = timestamp;
 
+            const moveInput: MoveSystemInput = {
+                delta,
+                currentTime: timestamp
+            };
+
             // Update systems
-            moveSystem(worldRef.current, delta);
+            moveSystem(worldRef.current, moveInput);
             aiSystem(worldRef.current, timestamp);
+            interactionSystem(worldRef.current);
+
+            const renderInput: RenderContext = {
+                ctx: canvasRef.current!.getContext('2d')!,
+                width: canvasRef.current!.width,
+                height: canvasRef.current!.height,
+                tileSize: TILE_SIZE,
+                mapSize: MAP_SIZE
+            };
 
             // Render
-            renderWorld();
+            renderSystem(worldRef.current, renderInput);
 
             animationFrameId = requestAnimationFrame(gameLoop);
-        };
-
-        const renderWorld = () => {
-            const canvas = canvasRef.current;
-            const world = worldRef.current;
-            if (!canvas) return;
-
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return;
-
-            // Set canvas size to window size
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-
-            // Clear canvas
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Apply camera transform
-            ctx.save();
-            ctx.translate(canvas.width / 2, canvas.height / 2);
-
-            // Draw grid background
-            ctx.fillStyle = '#1a1a1a';
-            for (let y = 0; y < MAP_SIZE; y++) {
-                for (let x = 0; x < MAP_SIZE; x++) {
-                    ctx.fillRect(
-                        (x - MAP_SIZE / 2) * TILE_SIZE,
-                        (y - MAP_SIZE / 2) * TILE_SIZE,
-                        TILE_SIZE - 1,
-                        TILE_SIZE - 1
-                    );
-                }
-            }
-
-            // Draw entities
-            for (const entity of world.getAllEntities()) {
-                const pos = entity.components.position;
-                const appearance = entity.components.appearance;
-                if (pos && appearance) {
-                    ctx.fillStyle = appearance.color;
-                    ctx.fillRect(
-                        (pos.x - MAP_SIZE / 2) * TILE_SIZE,
-                        (pos.y - MAP_SIZE / 2) * TILE_SIZE,
-                        TILE_SIZE - 1,
-                        TILE_SIZE - 1
-                    );
-                }
-            }
-
-            ctx.restore();
         };
 
         animationFrameId = requestAnimationFrame(gameLoop);
@@ -205,6 +189,28 @@ export default function GameRoom() {
 
         window.addEventListener('keydown', handleDebugKey);
         return () => window.removeEventListener('keydown', handleDebugKey);
+    }, []);
+
+    // Add resize handler
+    useEffect(() => {
+        const handleResize = () => {
+            if (!canvasRef.current) return;
+
+            // Calculate size while maintaining aspect ratio
+            const scale = Math.min(
+                window.innerWidth / (MAP_SIZE * TILE_SIZE),
+                window.innerHeight / (MAP_SIZE * TILE_SIZE)
+            );
+
+            canvasRef.current.width = MAP_SIZE * TILE_SIZE;
+            canvasRef.current.height = MAP_SIZE * TILE_SIZE;
+            canvasRef.current.style.transform = `scale(${scale})`;
+        };
+
+        window.addEventListener('resize', handleResize);
+        handleResize(); // Initial size
+
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     return (

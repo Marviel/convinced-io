@@ -1,7 +1,8 @@
+import { GameState } from '../network/types';
 import {
-  Entity,
-  EntityId,
-  Position,
+    Entity,
+    EntityId,
+    Position,
 } from './types';
 
 export class World {
@@ -95,5 +96,18 @@ export class World {
             const entity = this.entities.get(entityId);
             console.log(`${key}: ${entity?.type} (${entityId})`);
         });
+    }
+
+    saveState(): GameState {
+        return {
+            entities: Array.from(this.entities.entries()),
+            grid: Array.from(this.grid.entries()),
+            timestamp: Date.now()
+        };
+    }
+
+    loadState(state: GameState) {
+        this.entities = new Map(state.entities);
+        this.grid = new Map(state.grid);
     }
 } 

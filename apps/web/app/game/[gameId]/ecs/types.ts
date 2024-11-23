@@ -15,10 +15,15 @@ export interface Movement {
 
 export interface Appearance {
     color: string;
+    highlighted?: boolean;
 }
 
 export interface Collision {
     solid: boolean;
+}
+
+export interface Interactable {
+    radius: number;
 }
 
 export interface AI {
@@ -32,6 +37,7 @@ export type ComponentTypes = {
     appearance: Appearance;
     collision: Collision;
     ai: AI;
+    interactable: Interactable;
 };
 
 export type ComponentType = keyof ComponentTypes;

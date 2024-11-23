@@ -1,10 +1,12 @@
 import {
-  useEffect,
-  useRef,
+    useEffect,
+    useRef,
 } from 'react';
 
+import { Action } from '../network/types';
+
 export function useKeyboardControls(
-    onMove: (dx: number, dy: number) => void
+    onMove: (action: Action) => void
 ) {
     const keysPressed = useRef(new Set<string>());
 
@@ -29,7 +31,14 @@ export function useKeyboardControls(
             if (keys.has('a')) dx = -1;
             if (keys.has('d')) dx = 1;
 
-            onMove(dx, dy);
+            const moveAction: Action = {
+                type: 'MOVE',
+                payload: { dx, dy },
+                id: crypto.randomUUID(),
+                playerId: 'player',
+                timestamp: performance.now()
+            };
+            onMove(moveAction);
         };
 
         window.addEventListener('keydown', handleKeyDown);

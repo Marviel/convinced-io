@@ -153,6 +153,21 @@ export class WorldManager {
             Appearance.isMoving[eid] = 0;
         }
 
+        // Initialize with a random destination
+        let targetX, targetY;
+        let attempts = 0;
+        do {
+            targetX = Math.floor(Math.random() * this.width);
+            targetY = Math.floor(Math.random() * this.height);
+            attempts++;
+        } while (this.isPositionOccupied(targetX, targetY) && attempts < 10);
+
+        if (attempts < 10) {
+            Pathfinding.targetX[eid] = targetX;
+            Pathfinding.targetY[eid] = targetY;
+            Pathfinding.hasTarget[eid] = 1;
+        }
+
         this.updateGrid(eid, x, y);
 
         return eid;
@@ -180,7 +195,7 @@ export class WorldManager {
         return eid;
     }
 
-    private createInitialNPCs(count: number = 20) {
+    private createInitialNPCs(count: number = 5) {
         for (let i = 0; i < count; i++) {
             let x, y;
             do {

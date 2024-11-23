@@ -33,7 +33,9 @@ export const AI = defineComponent({
     type: Types.ui8,         // 0: random
     nextMoveTime: Types.f32,
     personalityIndex: Types.ui8, // Index into personality table
-    processingMessage: Types.ui8 // Boolean
+    processingMessage: Types.ui8, // Boolean
+    processingStartTime: Types.f32, // When did we start processing
+    processingMessageIndex: Types.ui16 // Index to message being processed
 })
 
 export const Interactable = defineComponent({

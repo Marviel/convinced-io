@@ -57,12 +57,16 @@ export function findPath(
         // Find node with lowest f score
         let currentIndex = 0;
         for (let i = 1; i < openSet.length; i++) {
-            if (openSet[i].f < openSet[currentIndex].f) {
+            const itemi = openSet[i];
+            const itemCurrent = openSet[currentIndex];
+            if (itemi && itemCurrent && itemi.f < itemCurrent.f) {
                 currentIndex = i;
             }
         }
 
         const current = openSet[currentIndex];
+
+        if (!current) continue;
 
         // Check if we reached the goal
         if (current.x === goal.x && current.y === goal.y) {

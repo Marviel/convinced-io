@@ -25,7 +25,8 @@ import { styled } from '@mui/material/styles'
 import AddIcon from '@mui/icons-material/Add'
 import GroupIcon from '@mui/icons-material/Group'
 import VisibilityIcon from '@mui/icons-material/Visibility'
-import { createClient } from '@supabase/supabase-js'
+
+import { useSupabase } from './client/SupabaseProvider';
 
 const StyledContainer = styled(Container)({
   display: 'flex',
@@ -77,11 +78,6 @@ interface Game {
   status: string;
   spectators_count?: number;
 }
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-)
 
 interface CreateGameDialogProps {
   open: boolean;
@@ -240,6 +236,8 @@ export default function Home() {
   const [gameCode, setGameCode] = React.useState('')
   const [games, setGames] = React.useState<Game[]>([])
   const [loading, setLoading] = React.useState(true)
+  const { supabase } = useSupabase();
+
 
   // Fetch available games
   React.useEffect(() => {
@@ -563,18 +561,12 @@ export default function Home() {
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={game._name}
+                  primary={<span>{game._name}</span>}
                   secondary={
-                    <Box
-                      component="span"
-                      sx={{ color: '#999', mt: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}
-                    >
-                      <Typography
-                        component="span"
-                        sx={{ color: '#999' }}
-                      >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ color: '#999' }}>
                         Players: {game.current_players}/{game.max_players}
-                      </Typography>
+                      </span>
                       <Chip
                         label={game.status}
                         size="small"
@@ -583,13 +575,10 @@ export default function Home() {
                           color: '#fff'
                         }}
                       />
-                      <Typography
-                        component="span"
-                        sx={{ color: '#999' }}
-                      >
+                      <span style={{ color: '#999' }}>
                         Spectators: {game.spectators_count}
-                      </Typography>
-                    </Box>
+                      </span>
+                    </span>
                   }
                 />
                 <ButtonGroup variant="outlined" size="small">

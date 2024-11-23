@@ -3,10 +3,19 @@ export interface Position {
     y: number;
 }
 
-export interface GameState {
-    entities: [string, Entity][];  // Array of [entityId, entity] tuples
-    grid: [string, string][];     // Array of [gridKey, entityId] tuples
+export interface GameMessage {
+    entityId: string;
+    entityType: 'player' | 'npc';
+    message: string;
     timestamp: number;
+    position: Position;
+}
+
+export interface GameState {
+    entities: [string, Entity][];
+    grid: [string, string][];
+    timestamp: number;
+    messages: GameMessage[];
 }
 
 export interface MovePayload {
@@ -25,12 +34,12 @@ export interface Action {
 export const THINKING_STATES = ['listening', 'changed', 'notChanged'] as const;
 export type ThinkingState = typeof THINKING_STATES[number];
 
-export interface GameMessage {
-    entityId: string;
-    entityType: 'player' | 'npc';
+export interface Speech {
     message: string;
-    timestamp: number;
-    position: Position;
+    expiryTime: number;  // Milliseconds since epoch
+    fadeStartTime?: number;  // Milliseconds since epoch
+    isThinking?: boolean;
+    thinkingState?: ThinkingState;
 }
 
 export interface Entity {
@@ -75,11 +84,6 @@ export interface Entity {
             currentPath?: Position[];
             pathIndex?: number;
         };
-        speech?: {
-            message: string;
-            expiryTime: number;
-            isThinking?: boolean;
-            thinkingState?: ThinkingState;
-        };
+        speech?: Speech;
     };
 } 

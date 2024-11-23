@@ -68,32 +68,29 @@ export function aiSystem(world: World, currentTime: number) {
             movement.dx = 0;
             movement.dy = 0;
 
-            // After thinking time, process message
-            if (currentTime - ai.processingMessage.processStartTime >= THINKING_TIME) {
-                processMessage(
-                    ai.personality || "A friendly NPC",
-                    ai.processingMessage.message,
-                    pos,
-                    world.width
-                ).then(response => {
-                    // Add response to message log
-                    world.addMessage({
-                        entityId: entity.id,
-                        entityType: 'npc',
-                        message: response.message,
-                        timestamp: currentTime,
-                        position: pos
-                    });
-
-                    // Update destination if needed
-                    if (response.destinationChange) {
-                        pathfinding.targetPosition = response.destinationChange;
-                    }
+            processMessage(
+                ai.personality || "A friendly NPC",
+                ai.processingMessage.message,
+                pos,
+                world.width
+            ).then(response => {
+                // Add response to message log
+                world.addMessage({
+                    entityId: entity.id,
+                    entityType: 'npc',
+                    message: response.message,
+                    timestamp: currentTime,
+                    position: pos
                 });
 
-                // Clear processing state
-                ai.processingMessage = undefined;
-            }
+                // Update destination if needed
+                if (response.destinationChange) {
+                    pathfinding.targetPosition = response.destinationChange;
+                }
+            });
+
+            // Clear processing state
+            ai.processingMessage = undefined;
 
             continue; // Skip normal movement while processing
         }

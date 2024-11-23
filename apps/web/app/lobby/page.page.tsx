@@ -32,8 +32,8 @@ import { AVAILABLE_SPRITES } from '../../utils/sprites'
 import Image from 'next/image'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import CheckIcon from '@mui/icons-material/Check'
-import { createClient } from '@supabase/supabase-js'
 import VisibilityIcon from '@mui/icons-material/Visibility'
+import { useSupabase } from '../client/SupabaseProvider';
 
 const StyledContainer = styled(Container)({
   display: 'flex',
@@ -121,13 +121,8 @@ interface Player {
   is_spectator: boolean;
   sprite_name: string;
 }
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
 export default function Lobby() {
+  const { supabase } = useSupabase();
   const [gameSettings, setGameSettings] = React.useState<GameSettings>({
     num_npcs: 5,
     difficulty: 'medium'
@@ -658,11 +653,10 @@ export default function Lobby() {
                       </ListItemAvatar>
                       <ListItemText 
                         primary={
-                          <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {player.display_name}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <span>{player.display_name}</span>
                             {player.is_host && (
                               <Chip 
-                                component="span"
                                 label="Host" 
                                 size="small"
                                 sx={{ 
@@ -674,12 +668,9 @@ export default function Lobby() {
                           </Box>
                         }
                         secondary={
-                          <Typography
-                            component="span"
-                            sx={{ color: player.is_ready ? '#4caf50' : '#ff9800' }}
-                          >
+                          <span style={{ color: player.is_ready ? '#4caf50' : '#ff9800' }}>
                             {player.is_ready ? 'Ready' : 'Not Ready'}
-                          </Typography>
+                          </span>
                         }
                       />
                       {currentUser?.is_host && !player.is_host && (
@@ -730,14 +721,11 @@ export default function Lobby() {
                             </Avatar>
                           </ListItemAvatar>
                           <ListItemText 
-                            primary={spectator.display_name}
+                            primary={<span>{spectator.display_name}</span>}
                             sx={{ 
                               '& .MuiListItemText-primary': { 
                                 color: '#999' 
                               }
-                            }}
-                            primaryTypographyProps={{
-                              component: 'span'
                             }}
                           />
                           {currentUser?.is_host && (

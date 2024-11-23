@@ -9,6 +9,7 @@ export function parseAllOf(
   if (schema.allOf.length === 0) {
     return "z.any()";
   } else if (schema.allOf.length === 1) {
+    // @ts-ignore
     return parseSchema(schema.allOf[0], withoutDefaults);
   } else {
     const [left, right] = half(schema.allOf);

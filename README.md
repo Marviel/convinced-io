@@ -1,6 +1,8 @@
 # Convinced.io
 A game where you convince AI to win.
 
+Our submission for the Supabase AI Hackathon at YC on Nov 22-23, 2024.
+
 ### Apps and Packages
 
 - `web`: another [Next.js](https://nextjs.org/) app

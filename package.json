@@ -5,7 +5,7 @@
     "build": "turbo build",
     "dev": "concurrently -c \"bgBlue.bold,bgGreen.bold\" -n \"turbo,game-server\" -p \"[{name}]\" \"npm run turbo:dev\" \"npm run game-server:dev\"",
     "turbo:dev": "turbo dev",
-    "game-server:dev": "cd bun_apps/game_server && bun run dev",
+    "game-server:dev": "cd bun_apps/game_server && bun run dev:watch",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "sb": "supabase"

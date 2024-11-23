@@ -1,3 +1,4 @@
+import { SupabaseManager } from './SupabaseManager';
 import { systems } from './systems';
 import type {
     Action,
@@ -17,8 +18,10 @@ export class GameManager {
     private games: Map<string, GameInstance> = new Map();
     private readonly INACTIVE_TIMEOUT = 5 * 60 * 1000; // 5 minutes in ms
     private readonly AUTOSAVE_INTERVAL = 60 * 1000; // 1 minute in ms
+    private supabaseManager: SupabaseManager;
 
     constructor() {
+        this.supabaseManager = new SupabaseManager(this);
         // Start cleanup interval
         setInterval(() => this.cleanupInactiveGames(), 60 * 1000);
         // Start autosave interval
@@ -59,6 +62,7 @@ export class GameManager {
     }
 
     processAction(gameId: string, action: Action) {
+        console.log(`gameId: ${gameId} processing action`);
         const game = this.games.get(gameId);
         if (!game) return;
 
@@ -79,6 +83,9 @@ export class GameManager {
     }
 
     private startGameLoop(gameId: string, world: World): number {
+        // Initialize channels
+        this.supabaseManager.initializeChannels(gameId);
+
         return setInterval(() => {
             const game = this.games.get(gameId);
             if (!game) return;
@@ -122,7 +129,7 @@ export class GameManager {
         // TODO: Implement save to database
         // This is where we'd save to Supabase
         const gameState = this.worldToGameState(world);
-        // await supabase.from('games').upsert({ id: gameId, state: gameState });
+        // await this.supabaseManager.(gameId, gameState);
     }
 
     private cleanupInactiveGames() {
@@ -158,18 +165,7 @@ export class GameManager {
         const game = this.games.get(gameId);
         if (!game) return;
 
-
-        console.log('Broadcasting game state');
-        const gameState = this.worldToGameState(game.world);
-        const message = JSON.stringify({
-            type: 'STATE_UPDATE',
-            state: gameState
-        });
-
-        for (const connection of game.connections) {
-            console.log('Sending message to connection');
-            connection.send(message);
-        }
+        this.supabaseManager.broadcastGameState(gameId, this.worldToGameState(game.world));
     }
 
     private processChatAction(world: World, action: Action) {

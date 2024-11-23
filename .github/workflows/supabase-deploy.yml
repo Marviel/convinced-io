@@ -12,8 +12,8 @@ jobs:
     - name: Print environment variables
       run: env | sort
 
-  DEV-Run-SB-Migrate:
-    environment: 'Dev'
+  PROD-Run-SB-Migrate:
+    environment: 'Production'
     runs-on: 'ubuntu-latest'
     if: github.ref == 'refs/heads/main'
     steps:

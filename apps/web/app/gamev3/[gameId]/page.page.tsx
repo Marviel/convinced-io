@@ -100,7 +100,7 @@ export default function GamePage() {
             stateChannel.unsubscribe();
             actionsChannel.unsubscribe();
         }
-    }, [params.gameId]);
+    }, [params?.gameId]);
 
     // Modify the action sending functions
     const sendAction = (action: any) => {
@@ -114,7 +114,10 @@ export default function GamePage() {
         playerActionsChannelRef.current.send({
             type: 'broadcast',
             event: 'player_action',
-            payload: action
+            payload: {
+                ...action,
+                playerId: playerIdRef.current
+            }
         });
     };
 

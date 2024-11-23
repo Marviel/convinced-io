@@ -1,40 +1,38 @@
 'use client'
 
-import React from 'react';
-
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-
-import CheckIcon from '@mui/icons-material/Check';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import {
+import React, { useEffect } from 'react'
+import { 
+  Container, 
+  Typography, 
+  Button, 
+  Slider, 
+  FormControl, 
+  InputLabel, 
+  Select, 
+  MenuItem, 
+  Paper, 
+  List, 
+  ListItem, 
+  ListItemText, 
+  ListItemAvatar, 
   Avatar,
   Box,
-  Button,
-  Chip,
-  Container,
   Divider,
-  FormControl,
+  TextField,
   Grid,
   IconButton,
-  InputLabel,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
-  MenuItem,
-  Paper,
-  Select,
-  Slider,
-  Snackbar,
-  TextField,
   Tooltip,
-  Typography,
-} from '@mui/material';
-import { styled } from '@mui/material/styles';
-
-import { AVAILABLE_SPRITES } from '../../utils/sprites';
+  Snackbar,
+  Chip,
+  Switch,
+} from '@mui/material'
+import { useRouter } from 'next/navigation'
+import { styled } from '@mui/material/styles'
+import { AVAILABLE_SPRITES } from '../../utils/sprites'
+import Image from 'next/image'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import CheckIcon from '@mui/icons-material/Check'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 import { useSupabase } from '../client/SupabaseProvider';
 
 const StyledContainer = styled(Container)({
@@ -123,7 +121,6 @@ interface Player {
   is_spectator: boolean;
   sprite_name: string;
 }
-
 export default function Lobby() {
   const { supabase } = useSupabase();
   const [gameSettings, setGameSettings] = React.useState<GameSettings>({
@@ -243,7 +240,7 @@ export default function Lobby() {
   const handleSpriteChange = async (sprite: string) => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
+      
       if (sessionError || !session?.user?.id || !gameId) {
         console.error('Error getting session:', sessionError)
         return
@@ -266,7 +263,7 @@ export default function Lobby() {
     try {
       // Get current session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
+      
       if (sessionError) {
         console.error('Error getting session:', sessionError)
         return
@@ -298,7 +295,7 @@ export default function Lobby() {
   const handleSettingsChange = async (settings: Partial<GameSettings>) => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
+      
       if (sessionError || !session?.user?.id || !gameId) {
         console.error('Error getting session:', sessionError)
         return
@@ -332,7 +329,7 @@ export default function Lobby() {
   const handleStartGame = async () => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
+      
       if (sessionError || !session?.user?.id || !gameId) {
         console.error('Error getting session:', sessionError)
         return
@@ -392,7 +389,7 @@ export default function Lobby() {
   const handleLeaveLobby = async () => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
+      
       if (sessionError || !session?.user?.id || !gameId) {
         console.error('Error getting session:', sessionError)
         return
@@ -414,7 +411,7 @@ export default function Lobby() {
       if (!currentUser?.is_spectator) {
         const { error: updateError } = await supabase
           .from('game_rooms')
-          .update({
+          .update({ 
             current_players: supabase.rpc('decrement_current_players', { game_room_id: gameId })
           })
           .eq('id', gameId)
@@ -445,7 +442,7 @@ export default function Lobby() {
   const handleKickPlayer = async (userId: string) => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
+      
       if (sessionError || !session?.user?.id || !gameId) {
         console.error('Error getting session:', sessionError)
         return
@@ -481,7 +478,7 @@ export default function Lobby() {
       if (kickedPlayer && !kickedPlayer.is_spectator) {
         const { error: updateError } = await supabase
           .from('game_rooms')
-          .update({
+          .update({ 
             current_players: supabase.rpc('decrement_current_players', { game_room_id: gameId })
           })
           .eq('id', gameId)
@@ -506,11 +503,11 @@ export default function Lobby() {
       </Typography>
 
       {gameId && (
-        <Box
+        <Box 
           component="span"
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
             gap: 1,
             backgroundColor: '#222',
             padding: '8px 16px',
@@ -523,10 +520,10 @@ export default function Lobby() {
             Game ID: {gameId}
           </Typography>
           <Tooltip title={copied ? "Copied!" : "Copy Game ID"}>
-            <IconButton
+            <IconButton 
               onClick={handleCopyGameId}
               size="small"
-              sx={{
+              sx={{ 
                 color: copied ? '#4caf50' : '#fff',
                 '&:hover': {
                   backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -600,9 +597,9 @@ export default function Lobby() {
             />
           </Box>
 
-          <FormControl fullWidth sx={{
+          <FormControl fullWidth sx={{ 
             '& .MuiInputLabel-root': { color: '#fff' },
-            '& .MuiOutlinedInput-root': {
+            '& .MuiOutlinedInput-root': { 
               color: '#fff',
               '& fieldset': { borderColor: '#666' },
               '&:hover fieldset': { borderColor: currentUser?.is_host ? '#999' : '#666' },
@@ -645,7 +642,7 @@ export default function Lobby() {
                 {players
                   .filter(player => !player.is_spectator)
                   .map((player) => (
-                    <ListItem
+                    <ListItem 
                       key={player.id}
                       sx={{
                         backgroundColor: '#222',
@@ -665,30 +662,26 @@ export default function Lobby() {
                           style={{ imageRendering: 'pixelated' }}
                         />
                       </ListItemAvatar>
-                      <ListItemText
+                      <ListItemText 
                         primary={
-                          <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {player.display_name}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <span>{player.display_name}</span>
                             {player.is_host && (
-                              <Chip
-                                component="span"
-                                label="Host"
+                              <Chip 
+                                label="Host" 
                                 size="small"
-                                sx={{
+                                sx={{ 
                                   backgroundColor: '#1976d2',
                                   color: '#fff'
-                                }}
+                                }} 
                               />
                             )}
                           </Box>
                         }
                         secondary={
-                          <Typography
-                            component="span"
-                            sx={{ color: player.is_ready ? '#4caf50' : '#ff9800' }}
-                          >
+                          <span style={{ color: player.is_ready ? '#4caf50' : '#ff9800' }}>
                             {player.is_ready ? 'Ready' : 'Not Ready'}
-                          </Typography>
+                          </span>
                         }
                       />
                       {currentUser?.is_host && !player.is_host && (
@@ -722,7 +715,7 @@ export default function Lobby() {
                     {players
                       .filter(player => player.is_spectator)
                       .map((spectator) => (
-                        <ListItem
+                        <ListItem 
                           key={spectator.id}
                           sx={{
                             backgroundColor: '#1a1a1a',
@@ -738,15 +731,12 @@ export default function Lobby() {
                               <VisibilityIcon />
                             </Avatar>
                           </ListItemAvatar>
-                          <ListItemText
-                            primary={spectator.display_name}
-                            sx={{
-                              '& .MuiListItemText-primary': {
-                                color: '#999'
+                          <ListItemText 
+                            primary={<span>{spectator.display_name}</span>}
+                            sx={{ 
+                              '& .MuiListItemText-primary': { 
+                                color: '#999' 
                               }
-                            }}
-                            primaryTypographyProps={{
-                              component: 'span'
                             }}
                           />
                           {currentUser?.is_host && (

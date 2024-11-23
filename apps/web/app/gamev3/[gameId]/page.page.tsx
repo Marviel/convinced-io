@@ -68,8 +68,7 @@ export default function GamePage() {
     const playerActionsChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
     // Initialize channels
     useEffect(() => {
-        if (!params) return;
-        if (!params.gameId) return;
+        if (!params?.gameId) return;
 
         console.log('Initializing channels for game:', params.gameId);
 

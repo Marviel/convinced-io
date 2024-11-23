@@ -1,32 +1,30 @@
 'use client';
 
-import React from 'react';
-
-import { useRouter } from 'next/navigation';
-
-import AddIcon from '@mui/icons-material/Add';
-import GroupIcon from '@mui/icons-material/Group';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import {
-  Avatar,
+import React from 'react'
+import { 
+  Container, 
+  Typography, 
+  Button, 
+  Paper, 
   Box,
-  Button,
-  ButtonGroup,
-  Chip,
-  Container,
+  TextField,
   Dialog,
-  DialogActions,
-  DialogContent,
   DialogTitle,
+  DialogContent,
+  DialogActions,
   List,
   ListItem,
-  ListItemAvatar,
   ListItemText,
-  Paper,
-  TextField,
-  Typography,
-} from '@mui/material';
-import { styled } from '@mui/material/styles';
+  ListItemAvatar,
+  Avatar,
+  Chip,
+  ButtonGroup,
+} from '@mui/material'
+import { useRouter } from 'next/navigation'
+import { styled } from '@mui/material/styles'
+import AddIcon from '@mui/icons-material/Add'
+import GroupIcon from '@mui/icons-material/Group'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 
 import { useSupabase } from './client/SupabaseProvider';
 
@@ -104,8 +102,8 @@ const CreateGameDialog = ({ open, onClose, onSubmit }: CreateGameDialogProps) =>
   }, [onClose])
 
   return (
-    <Dialog
-      open={open}
+    <Dialog 
+      open={open} 
       onClose={handleClose}
       slotProps={{
         backdrop: {
@@ -138,13 +136,13 @@ const CreateGameDialog = ({ open, onClose, onSubmit }: CreateGameDialogProps) =>
         />
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        <Button
+        <Button 
           onClick={handleClose}
           sx={{ color: '#fff' }}
         >
           Cancel
         </Button>
-        <Button
+        <Button 
           onClick={handleSubmit}
           variant="contained"
           disabled={!gameName.trim() || !displayName.trim()}
@@ -179,8 +177,8 @@ const JoinGameDialog = ({ open, onClose, onSubmit }: JoinGameDialogProps) => {
   }, [onClose])
 
   return (
-    <Dialog
-      open={open}
+    <Dialog 
+      open={open} 
       onClose={handleClose}
       slotProps={{
         backdrop: {
@@ -213,13 +211,13 @@ const JoinGameDialog = ({ open, onClose, onSubmit }: JoinGameDialogProps) => {
         />
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        <Button
+        <Button 
           onClick={handleClose}
           sx={{ color: '#fff' }}
         >
           Cancel
         </Button>
-        <Button
+        <Button 
           onClick={handleSubmit}
           variant="contained"
           disabled={!gameId.trim() || !displayName.trim()}
@@ -430,8 +428,8 @@ export default function Home() {
       // 4. Update current_players count
       const { error: updateError } = await supabase
         .from('game_rooms')
-        .update({
-          current_players: gameRoom.current_players + 1
+        .update({ 
+          current_players: gameRoom.current_players + 1 
         })
         .eq('id', gameId)
 
@@ -563,18 +561,12 @@ export default function Home() {
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={game._name}
+                  primary={<span>{game._name}</span>}
                   secondary={
-                    <Box
-                      component="span"
-                      sx={{ color: '#999', mt: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}
-                    >
-                      <Typography
-                        component="span"
-                        sx={{ color: '#999' }}
-                      >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ color: '#999' }}>
                         Players: {game.current_players}/{game.max_players}
-                      </Typography>
+                      </span>
                       <Chip
                         label={game.status}
                         size="small"
@@ -583,13 +575,10 @@ export default function Home() {
                           color: '#fff'
                         }}
                       />
-                      <Typography
-                        component="span"
-                        sx={{ color: '#999' }}
-                      >
+                      <span style={{ color: '#999' }}>
                         Spectators: {game.spectators_count}
-                      </Typography>
-                    </Box>
+                      </span>
+                    </span>
                   }
                 />
                 <ButtonGroup variant="outlined" size="small">

@@ -7,6 +7,7 @@ export const parseAnyOf = (
 ) => {
   return schema.anyOf.length
     ? schema.anyOf.length === 1
+      // @ts-ignore
       ? parseSchema(schema.anyOf[0], withoutDefaults)
       : `z.union([${schema.anyOf.map((schema) =>
           parseSchema(schema, withoutDefaults)

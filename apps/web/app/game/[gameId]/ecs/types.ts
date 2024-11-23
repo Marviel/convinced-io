@@ -48,11 +48,13 @@ export interface PathfindingComponent {
     pathIndex?: number;
 }
 
+export type ThinkingState = 'listening' | 'changed' | 'notChanged';
+
 export interface Speech {
     message: string;
     expiryTime: number;
     isThinking?: boolean;
-    isChangingDirection?: boolean;
+    thinkingState?: ThinkingState;
 }
 
 export interface PathfindingComponent {

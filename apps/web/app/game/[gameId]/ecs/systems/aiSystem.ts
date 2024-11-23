@@ -118,7 +118,8 @@ export function aiSystem(world: World, currentTime: number) {
             entity.components.speech = {
                 message: "!",
                 expiryTime: currentTime + 1000,
-                isThinking: true
+                isThinking: true,
+                thinkingState: 'listening'
             };
 
             // Stop moving while processing
@@ -131,43 +132,47 @@ export function aiSystem(world: World, currentTime: number) {
                     ai.personality || "A friendly NPC",
                     ai.processingMessage.message
                 ).then(response => {
-                    // Log the message
                     world.addMessage({
                         entityId: entity.id,
                         entityType: 'npc',
                         message: response.message,
                         timestamp: currentTime,
-                        position: { ...position }
+                        position: { x: position.x, y: position.y }
                     });
 
-                    // Show response
+                    const isChangingDirection = !!response.destinationChange;
+
+                    // Show thinking state
                     entity.components.speech = {
-                        message: response.message,
-                        expiryTime: currentTime + 3000,
+                        message: "!",
+                        expiryTime: currentTime + 1000,
                         isThinking: true,
-                        isChangingDirection: !!response.destinationChange
+                        thinkingState: isChangingDirection ? 'changed' : 'notChanged'
                     };
 
                     // Update destination if needed
                     if (response.destinationChange) {
-                        const newDestination = response.destinationChange; // Temporary variable to handle null
-                        if (newDestination) { // Check if not null
-                            pathfinding.targetPosition = newDestination;
-                            const path = pathfinder?.findPath(
-                                position,
-                                newDestination // Use the temporary variable
-                            );
-                            if (path) {
-                                pathfinding.currentPath = path;
-                                pathfinding.pathIndex = 0;
+                        setTimeout(() => {
+                            entity.components.speech = {
+                                message: response.message,
+                                expiryTime: currentTime + 3000
+                            };
+
+                            if (response.destinationChange) {
+                                pathfinding.targetPosition = {
+                                    x: response.destinationChange.x,
+                                    y: response.destinationChange.y
+                                };
                             }
-                        }
+                        }, 1000);
                     } else {
-                        // If not changing direction, immediately show message
-                        entity.components.speech = {
-                            message: response.message,
-                            expiryTime: currentTime + 3000
-                        };
+                        // If not changing direction, show message after brief pause
+                        setTimeout(() => {
+                            entity.components.speech = {
+                                message: response.message,
+                                expiryTime: currentTime + 3000
+                            };
+                        }, 1000);
                     }
                 });
 
@@ -178,78 +183,70 @@ export function aiSystem(world: World, currentTime: number) {
             continue; // Skip normal movement while processing
         }
 
-        let state = aiStates.get(entity.id) || {};
-        aiStates.set(entity.id, state);
+        // Pick initial destination if none exists
+        if (!pathfinding.targetPosition) {
+            let targetX, targetY;
+            let attempts = 0;
+            do {
+                targetX = Math.floor(Math.random() * world.width);
+                targetY = Math.floor(Math.random() * world.height);
+                attempts++;
+            } while (world.isPositionOccupied(targetX, targetY) && attempts < 10);
 
-        if (currentTime >= ai.nextMoveTime) {
-            // Normal pathfinding behavior
-            if (!pathfinding.targetPosition) {
-                // Pick new random destination
-                let targetX, targetY;
-                let attempts = 0;
-                do {
-                    targetX = Math.floor(Math.random() * world.width);
-                    targetY = Math.floor(Math.random() * world.height);
-                    attempts++;
-                } while (world.isPositionOccupied(targetX, targetY) && attempts < 10);
-
-                if (attempts < 10) {
-                    pathfinding.targetPosition = { x: targetX, y: targetY };
-                    const path = pathfinder.findPath(
-                        position,
-                        pathfinding.targetPosition
-                    );
-                    if (path) {
-                        pathfinding.currentPath = path;
-                        pathfinding.pathIndex = 0;
-                    }
-                }
+            if (attempts < 10) {
+                pathfinding.targetPosition = { x: targetX, y: targetY };
             }
-
-            // Follow current path
-            if (pathfinding.currentPath && pathfinding.pathIndex !== undefined) {
-                const nextPoint = pathfinding.currentPath[pathfinding.pathIndex];
-
-                if (nextPoint) {
-                    movement.dx = Math.sign(nextPoint.x - position.x);
-                    movement.dy = Math.sign(nextPoint.y - position.y);
-
-                    if (position.x === nextPoint.x && position.y === nextPoint.y) {
-                        pathfinding.pathIndex++;
-                    }
-                } else {
-                    // Reached destination - generate message
-                    movement.dx = 0;
-                    movement.dy = 0;
-
-                    // Only generate message if we don't already have one
-                    if (!entity.components.speech) {
-                        generateMessage().then(message => {
-                            // Log the arrival message
-                            world.addMessage({
-                                entityId: entity.id,
-                                entityType: 'npc',
-                                message: message,
-                                timestamp: currentTime,
-                                position: { ...position }
-                            });
-
-                            entity.components.speech = {
-                                message,
-                                expiryTime: currentTime + 3000,
-                            };
-                        });
-                    }
-
-                    pathfinding.targetPosition = undefined;
-                    pathfinding.currentPath = undefined;
-                    pathfinding.pathIndex = undefined;
-                }
-            }
-
-            // Update last position for next cycle
-            state.lastPosition = { ...position };
-            ai.nextMoveTime = currentTime + 200;
         }
+
+        // Always try to update path if we have a target but no path
+        if (pathfinding.targetPosition && (!pathfinding.currentPath || pathfinding.pathIndex === undefined)) {
+            const path = pathfinder.findPath(position, pathfinding.targetPosition);
+            if (path) {
+                pathfinding.currentPath = path;
+                pathfinding.pathIndex = 0;
+            }
+        }
+
+        // Follow current path
+        if (pathfinding.currentPath && pathfinding.pathIndex !== undefined) {
+            const nextPoint = pathfinding.currentPath[pathfinding.pathIndex];
+
+            if (nextPoint) {
+                movement.dx = Math.sign(nextPoint.x - position.x);
+                movement.dy = Math.sign(nextPoint.y - position.y);
+
+                if (position.x === nextPoint.x && position.y === nextPoint.y) {
+                    pathfinding.pathIndex++;
+                }
+            } else {
+                // Reached end of path
+                movement.dx = 0;
+                movement.dy = 0;
+                pathfinding.targetPosition = undefined;
+                pathfinding.currentPath = undefined;
+                pathfinding.pathIndex = undefined;
+
+                // Generate arrival message
+                if (!entity.components.speech) {
+                    generateMessage().then(message => {
+                        entity.components.speech = {
+                            message,
+                            expiryTime: currentTime + 3000,
+                        };
+                    });
+                }
+            }
+        }
+
+        // Handle destination changes from message processing
+        if (pathfinding.targetPosition && !pathfinding.currentPath) {
+            const newPath = pathfinder.findPath(position, pathfinding.targetPosition);
+            if (newPath) {
+                pathfinding.currentPath = newPath;
+                pathfinding.pathIndex = 0;
+            }
+        }
+
+        ai.nextMoveTime = currentTime + 200;
     }
 } 

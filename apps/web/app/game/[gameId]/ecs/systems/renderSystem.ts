@@ -300,8 +300,16 @@ export function renderSystem(world: World, context: RenderContext) {
             // Special handling for thinking indicator
             if (speech.isThinking) {
                 const size = tileSize / 2;
-                // Change color based on whether direction is changing
-                ctx.fillStyle = speech.isChangingDirection ? 'red' : 'yellow';
+                // Color based on thinking state
+                const thinkingColors = {
+                    listening: 'yellow',
+                    changed: 'red',
+                    notChanged: '#888888'  // gray
+                };
+                ctx.fillStyle = speech.thinkingState ?
+                    thinkingColors[speech.thinkingState] :
+                    thinkingColors.listening;
+
                 ctx.beginPath();
                 ctx.arc(x, y - tileSize - size, size, 0, Math.PI * 2);
                 ctx.fill();

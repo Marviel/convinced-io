@@ -9,6 +9,7 @@ import {
     RenderContext,
     renderSystem,
 } from './renderSystem';
+import { speechSystem } from './speechSystem';
 
 // Non-authoritative systems (can run on client for optimistic updates)
 export const clientSystems = {
@@ -34,4 +35,5 @@ export {
     type MoveSystemInput,
     type RenderContext,
     renderSystem,
+    speechSystem,
 };

@@ -8,6 +8,84 @@ interface AIState {
 }
 
 const aiStates = new Map<string, AIState>();
+const THINKING_TIME = 2000; // Time to process a message
+
+interface ThinkResponse {
+    message: string;
+    destinationChange: {
+        x: number;
+        y: number;
+    } | null;
+}
+
+async function generateMessage(): Promise<string> {
+    try {
+        const response = await fetch('/api/genObject', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                schema: {
+                    type: 'object',
+                    properties: {
+                        message: { type: 'string' },
+                    },
+                    required: ['message'],
+                },
+                temperature: 1.0,
+                prompt: "Generate a short, funny message that an NPC might say when reaching their destination. Keep it under 40 characters.",
+            }),
+        });
+
+        const result = await response.json();
+        return result.message;
+    } catch (error) {
+        console.error('Error generating message:', error);
+        return "I made it!"; // Fallback message
+    }
+}
+
+async function processMessage(personality: string, message: string): Promise<ThinkResponse> {
+    try {
+        const response = await fetch('/api/genObject', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                schema: {
+                    type: 'object',
+                    properties: {
+                        message: { type: 'string' },
+                        destinationChange: {
+                            type: ['object', 'null'],
+                            properties: {
+                                x: { type: 'number', description: 'The new destination X Coord' },
+                                y: { type: 'number', description: 'The new destination Y Coord' }
+                            },
+                            required: ['x', 'y']
+                        }
+                    },
+                    required: ['message', 'destinationChange']
+                },
+                prompt: `You are an NPC with the following personality: ${personality}. 
+                        Someone just told you: "${message}". 
+                        How do you respond, and does this make you want to change where you're going?
+                        If you decide to change destination, ensure coordinates are within 0-50.`,
+            }),
+        });
+
+        const result = await response.json();
+        return result;
+    } catch (error) {
+        console.error('Error processing message:', error);
+        return {
+            message: "Hmm... interesting.",
+            destinationChange: null
+        };
+    }
+}
 
 export function aiSystem(world: World, currentTime: number) {
     // Initialize or update pathfinder
@@ -33,6 +111,52 @@ export function aiSystem(world: World, currentTime: number) {
         const position = entity.components.position;
 
         if (!ai || !pathfinding || !movement || !position || entity.type !== 'npc') continue;
+
+        // Handle message processing
+        if (ai.processingMessage) {
+            // Show thinking indicator
+            entity.components.speech = {
+                message: "!",
+                expiryTime: currentTime + 1000,
+                isThinking: true
+            };
+
+            // Stop moving while processing
+            movement.dx = 0;
+            movement.dy = 0;
+
+            // After thinking time, process message
+            if (currentTime - ai.processingMessage.processStartTime >= THINKING_TIME) {
+                processMessage(
+                    ai.personality || "A friendly NPC",
+                    ai.processingMessage.message
+                ).then(response => {
+                    // Show response
+                    entity.components.speech = {
+                        message: response.message,
+                        expiryTime: currentTime + 3000
+                    };
+
+                    // Update destination if needed
+                    if (response.destinationChange) {
+                        pathfinding.targetPosition = response.destinationChange;
+                        const path = pathfinder?.findPath(
+                            position,
+                            response.destinationChange
+                        );
+                        if (path) {
+                            pathfinding.currentPath = path;
+                            pathfinding.pathIndex = 0;
+                        }
+                    }
+                });
+
+                // Clear processing state
+                ai.processingMessage = undefined;
+            }
+
+            continue; // Skip normal movement while processing
+        }
 
         let state = aiStates.get(entity.id) || {};
         aiStates.set(entity.id, state);
@@ -74,9 +198,20 @@ export function aiSystem(world: World, currentTime: number) {
                         pathfinding.pathIndex++;
                     }
                 } else {
-                    // Reached destination
+                    // Reached destination - generate message
                     movement.dx = 0;
                     movement.dy = 0;
+
+                    // Only generate message if we don't already have one
+                    if (!entity.components.speech) {
+                        generateMessage().then(message => {
+                            entity.components.speech = {
+                                message,
+                                expiryTime: currentTime + 3000, // Show message for 3 seconds
+                            };
+                        });
+                    }
+
                     pathfinding.targetPosition = undefined;
                     pathfinding.currentPath = undefined;
                     pathfinding.pathIndex = undefined;

@@ -6,8 +6,10 @@ import {
     useState,
 } from 'react';
 
+import { Button } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
+import { SpeechBubble } from './components/SpeechBubble';
 import {
     aiSystem,
     interactionSystem,
@@ -15,6 +17,7 @@ import {
     type MoveSystemInput,
     type RenderContext,
     renderSystem,
+    speechSystem,
 } from './ecs/systems';
 import { Entity } from './ecs/types';
 import { World } from './ecs/World';
@@ -50,6 +53,12 @@ const GameCanvas = styled('canvas')({
     imageRendering: 'pixelated',
 });
 
+// Add this type
+interface GeneratedMessage {
+    message: string;
+    timestamp: number;
+}
+
 export default function GameRoom() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const worldRef = useRef<World>(new World(MAP_SIZE, MAP_SIZE));
@@ -57,6 +66,7 @@ export default function GameRoom() {
     const lastTimeRef = useRef<number>(0);
     const [initialized, setInitialized] = useState(false);
     const networkManager = useRef<NetworkManager>();
+    const [generatedMessage, setGeneratedMessage] = useState<GeneratedMessage | null>(null);
 
     // Initialize world
     useEffect(() => {
@@ -138,7 +148,7 @@ export default function GameRoom() {
                     },
                     collision: { solid: true },
                     ai: { type: 'random', nextMoveTime: 0 },
-                    pathfinding: { targetPosition: { x: 0, y: 0 } }
+                    pathfinding: {}
                 },
             };
             world.addEntity(npc);
@@ -175,6 +185,7 @@ export default function GameRoom() {
             moveSystem(worldRef.current, moveInput);
             aiSystem(worldRef.current, timestamp);
             interactionSystem(worldRef.current);
+            speechSystem(worldRef.current, timestamp);
 
             const renderInput: RenderContext = {
                 ctx: canvasRef.current!.getContext('2d')!,
@@ -228,9 +239,131 @@ export default function GameRoom() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Add this function
+    // const handleGenerate = async () => {
+    //     try {
+    //         const response = await fetch('/api/genObject', {
+    //             method: 'POST',
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //             },
+    //             body: JSON.stringify({
+    //                 schema: {
+    //                     type: 'object',
+    //                     properties: {
+    //                         message: { type: 'string' },
+    //                     },
+    //                     required: ['message'],
+    //                 },
+    //                 prompt: "Generate a short, funny message for a game character to say.",
+    //             }),
+    //         });
+
+    //         const result = await response.json();
+    //         console.log(result);
+
+    //         // Add speech component to player
+    //         if (playerRef.current) {
+    //             playerRef.current.components.speech = {
+    //                 message: result.message,
+    //                 expiryTime: performance.now() + 5000, // 5 seconds from now
+    //             };
+    //         }
+    //     } catch (error) {
+    //         console.error('Error generating message:', error);
+    //     }
+    // };
+
+    const handlePlayerSpeak = async (message: string) => {
+        const player = playerRef.current;
+        if (!player?.components.position || !player.components.interactable) return;
+
+        // Get all NPCs in range
+        const npcsInRange = worldRef.current.getAllEntities().filter(entity => {
+            if (entity.type !== 'npc') return false;
+
+            const npcPos = entity.components.position;
+            if (!npcPos) return false;
+
+            const dx = npcPos.x - player.components.position!.x;
+            const dy = npcPos.y - player.components.position!.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            return distance <= player.components.interactable!.radius;
+        });
+
+        // Make them process the message
+        for (const npc of npcsInRange) {
+            if (npc.components.ai) {
+                npc.components.ai.processingMessage = {
+                    message,
+                    fromEntity: player.id,
+                    processStartTime: performance.now()
+                };
+            }
+        }
+
+        // Show player's message
+        player.components.speech = {
+            message,
+            expiryTime: performance.now() + 3000
+        };
+    };
+
+    // Update handleGenerate to use this
+    const handleGenerate = async () => {
+        try {
+            const response = await fetch('/api/genObject', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    schema: {
+                        type: 'object',
+                        properties: {
+                            message: { type: 'string' },
+                        },
+                        required: ['message'],
+                    },
+                    prompt: "Generate a short, funny message for a game character to say.",
+                }),
+            });
+
+            const result = await response.json();
+            handlePlayerSpeak(result.message);
+        } catch (error) {
+            console.error('Error generating message:', error);
+        }
+    };
+
+    // Update the render function to include button and speech bubble
     return (
         <GameContainer>
             <GameCanvas ref={canvasRef} />
+
+            {/* Add Generate Button */}
+            <Button
+                variant="contained"
+                onClick={handleGenerate}
+                sx={{
+                    position: 'fixed',
+                    bottom: 20,
+                    right: 20,
+                    zIndex: 1000,
+                }}
+            >
+                Generate Message
+            </Button>
+
+            {/* Add Speech Bubble */}
+            {generatedMessage && playerRef.current?.components.position && (
+                <SpeechBubble
+                    text={generatedMessage.message}
+                    x={window.innerWidth / 2}
+                    y={window.innerHeight / 2 - 50}
+                />
+            )}
         </GameContainer>
     );
 }

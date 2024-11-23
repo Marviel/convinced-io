@@ -135,6 +135,7 @@ export function renderSystem(world: World, context: RenderContext) {
         const pos = entity.components.position;
         const appearance = entity.components.appearance;
         const pathfinding = entity.components.pathfinding;
+        const speech = entity.components.speech;
         if (!pos || !appearance) continue;
 
         const x = (pos.x - mapSize / 2) * tileSize;
@@ -184,6 +185,53 @@ export function renderSystem(world: World, context: RenderContext) {
             const targetY = (pathfinding.targetPosition.y - mapSize / 2) * tileSize + tileSize / 2;
 
             ctx.fillStyle = appearance.color || '#ff0000';
+            drawStar(ctx, targetX, targetY, tileSize / 2, 0.5);
+        }
+
+        // Draw path for NPCs
+        if (entity.type === 'npc' && pathfinding?.currentPath && pathfinding.pathIndex !== undefined) {
+            // Create gradient for path
+            const path = pathfinding.currentPath.slice(pathfinding.pathIndex);
+            if (path.length > 0) {
+                // Draw connecting lines with gradient
+                ctx.beginPath();
+                ctx.strokeStyle = appearance.color;
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 0.3;
+
+                const startX = (pos.x - mapSize / 2) * tileSize + tileSize / 2;
+                const startY = (pos.y - mapSize / 2) * tileSize + tileSize / 2;
+                ctx.moveTo(startX, startY);
+
+                path.forEach(point => {
+                    const pathX = (point.x - mapSize / 2) * tileSize + tileSize / 2;
+                    const pathY = (point.y - mapSize / 2) * tileSize + tileSize / 2;
+                    ctx.lineTo(pathX, pathY);
+                });
+
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+
+                // Draw dots at each path point
+                path.forEach(point => {
+                    const pathX = (point.x - mapSize / 2) * tileSize + tileSize / 2;
+                    const pathY = (point.y - mapSize / 2) * tileSize + tileSize / 2;
+                    ctx.beginPath();
+                    ctx.arc(pathX, pathY, 2, 0, Math.PI * 2);
+                    ctx.fillStyle = appearance.color;
+                    ctx.globalAlpha = 0.5;
+                    ctx.fill();
+                });
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // Draw destination marker for NPCs
+        if (entity.type === 'npc' && pathfinding?.targetPosition) {
+            const targetX = (pathfinding.targetPosition.x - mapSize / 2) * tileSize + tileSize / 2;
+            const targetY = (pathfinding.targetPosition.y - mapSize / 2) * tileSize + tileSize / 2;
+
+            ctx.fillStyle = appearance.color;
             drawStar(ctx, targetX, targetY, tileSize / 2, 0.5);
         }
 
@@ -243,6 +291,61 @@ export function renderSystem(world: World, context: RenderContext) {
             // Fallback to color rendering
             ctx.fillStyle = appearance.color || '#ff0000';
             ctx.fillRect(x, y, tileSize - 1, tileSize - 1);
+        }
+
+        // Draw speech bubble if entity has speech
+        if (speech) {
+            ctx.save();
+
+            // Special handling for thinking indicator
+            if (speech.isThinking) {
+                const size = tileSize / 2;
+                ctx.fillStyle = 'yellow';
+                ctx.beginPath();
+                ctx.arc(x, y - tileSize - size, size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = 'black';
+                ctx.font = 'bold ${size}px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('!', x, y - tileSize - size);
+            } else {
+                // Speech bubble background
+                const padding = 10;
+                const fontSize = 14;
+                ctx.font = `${fontSize}px Arial`;
+                const textWidth = ctx.measureText(speech.message).width;
+                const bubbleWidth = textWidth + padding * 2;
+                const bubbleHeight = fontSize + padding * 2;
+                const bubbleX = x - bubbleWidth / 2;
+                const bubbleY = y - tileSize - bubbleHeight - 10;
+
+                // Draw bubble background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.beginPath();
+                ctx.roundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, 8);
+                ctx.fill();
+
+                // Draw pointer
+                ctx.beginPath();
+                ctx.moveTo(x - 8, bubbleY + bubbleHeight);
+                ctx.lineTo(x + 8, bubbleY + bubbleHeight);
+                ctx.lineTo(x, bubbleY + bubbleHeight + 8);
+                ctx.closePath();
+                ctx.fill();
+
+                // Draw text
+                ctx.fillStyle = '#000';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(
+                    speech.message,
+                    x,
+                    bubbleY + bubbleHeight / 2
+                );
+            }
+
+            ctx.restore();
         }
     }
 

@@ -35,7 +35,7 @@ import {
 import { styled } from '@mui/material/styles';
 
 import { AVAILABLE_SPRITES } from '../../utils/sprites';
-import { supabase } from '../sdk/supabase';
+import { useSupabase } from '../client/SupabaseProvider';
 
 const StyledContainer = styled(Container)({
   display: 'flex',
@@ -125,6 +125,7 @@ interface Player {
 }
 
 export default function Lobby() {
+  const { supabase } = useSupabase();
   const [gameSettings, setGameSettings] = React.useState<GameSettings>({
     num_npcs: 5,
     difficulty: 'medium'

@@ -10,8 +10,8 @@ import { useParams } from 'next/navigation';
 
 import { TextField } from '@mui/material';
 
+import { useSupabase } from '../../client/SupabaseProvider';
 import { Entity } from '../../game/[gameId]/ecs/types';
-import { supabase } from '../../sdk/supabase';
 import { ChatHistory } from './components/ChatHistory';
 import { SpeechBubble } from './components/SpeechBubble';
 import { renderSystem } from './renderSystem';
@@ -47,6 +47,7 @@ const gameAreaStyle: React.CSSProperties = {
 };
 
 export default function GamePage() {
+    const { supabase } = useSupabase();
     const params = useParams();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isConnected, setIsConnected] = useState(false);
@@ -57,9 +58,18 @@ export default function GamePage() {
     const needsRenderRef = useRef<boolean>(false);
     const animationFrameRef = useRef<number>();
     const playerActionsChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+    const playerIdRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        (async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            playerIdRef.current = user?.id ?? null;
+        })();
+    }, []);
 
     // Initialize channels
     useEffect(() => {
+        if (!params) return;
         if (!params.gameId) return;
 
         console.log('Initializing channels for game:', params.gameId);
@@ -129,7 +139,7 @@ export default function GamePage() {
                     type: 'MOVE',
                     payload: { dx, dy },
                     id: crypto.randomUUID(),
-                    playerId: 'player',
+                    playerId: playerIdRef.current,
                     timestamp: performance.now()
                 });
             }

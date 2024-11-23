@@ -28,7 +28,7 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
-import { supabase } from './sdk/supabase';
+import { useSupabase } from './client/SupabaseProvider';
 
 const StyledContainer = styled(Container)({
   display: 'flex',
@@ -238,6 +238,8 @@ export default function Home() {
   const [gameCode, setGameCode] = React.useState('')
   const [games, setGames] = React.useState<Game[]>([])
   const [loading, setLoading] = React.useState(true)
+  const { supabase } = useSupabase();
+
 
   // Fetch available games
   React.useEffect(() => {

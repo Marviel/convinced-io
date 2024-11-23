@@ -36,20 +36,13 @@ const GameContainer = styled('div')({
     height: '100vh',
     overflow: 'hidden',
     backgroundColor: '#000',
-    position: 'fixed',
-    top: 0,
-    left: 0,
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
 });
 
 const GameCanvas = styled('canvas')({
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
+    position: 'relative',
     imageRendering: 'pixelated',
 });
 
@@ -222,15 +215,16 @@ export default function GameRoom() {
         const handleResize = () => {
             if (!canvasRef.current) return;
 
-            // Calculate size while maintaining aspect ratio
-            const scale = Math.min(
-                window.innerWidth / (MAP_SIZE * TILE_SIZE),
-                window.innerHeight / (MAP_SIZE * TILE_SIZE)
-            );
+            // Calculate the size that maintains square aspect ratio
+            const minDimension = Math.min(window.innerWidth, window.innerHeight);
+            const size = Math.floor(minDimension * 0.9); // 90% of the smaller dimension
 
             canvasRef.current.width = MAP_SIZE * TILE_SIZE;
             canvasRef.current.height = MAP_SIZE * TILE_SIZE;
-            canvasRef.current.style.transform = `scale(${scale})`;
+
+            // Scale the canvas while maintaining aspect ratio
+            canvasRef.current.style.width = `${size}px`;
+            canvasRef.current.style.height = `${size}px`;
         };
 
         window.addEventListener('resize', handleResize);

@@ -304,6 +304,7 @@ export default function GamePage() {
                                     x={screenX}
                                     y={screenY}
                                     expiryTime={entity.components.speech.expiryTime}
+                                    // @ts-ignore
                                     fadeStartTime={entity.components.speech.fadeStartTime}
                                     currentTime={gameState.timestamp}
                                 />

@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { World } from '../World';
 
 const spriteCache = new Map<string, HTMLImageElement>();

@@ -1,0 +1,38 @@
+name: Supabase PROD Deployment 
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  Print:
+    runs-on: 'ubuntu-latest'
+    steps:
+    - name: Print environment variables
+      run: env | sort
+
+  DEV-Run-SB-Migrate:
+    environment: 'Dev'
+    runs-on: 'ubuntu-latest'
+    if: github.ref == 'refs/heads/main'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        persist-credentials: true
+    - name: Download Supabase CLI
+      # 1.150.7
+      run: |
+        wget https://github.com/supabase/cli/releases/download/v1.150.7/supabase_1.150.7_linux_amd64.deb
+    - name: Install Supabase CLI
+      run: |
+        sudo dpkg -i supabase_1.150.7_linux_amd64.deb
+    - name: Print Supabase CLI Help
+      run: supabase help
+    - name: Login to Supabase
+      run: echo ${{ secrets.SUPABASE_DB_AUTH_TOKEN }} | supabase login
+    - name: Link
+      run: supabase link -p ${{ secrets.SUPABASE_DB_PASSWORD }} --project-ref exxjtsuhqbwlnfruveqd
+    - name: Push local migrations to the remote database
+      run: supabase db push -p ${{ secrets.SUPABASE_DB_PASSWORD }}

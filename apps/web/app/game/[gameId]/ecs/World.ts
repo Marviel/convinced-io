@@ -2,6 +2,7 @@ import { GameState } from '../network/types';
 import {
     Entity,
     EntityId,
+    GameMessage,
     Position,
 } from './types';
 
@@ -14,6 +15,7 @@ export class World {
     private entities: Map<EntityId, Entity> = new Map();
     private grid: Map<string, EntityId> = new Map();
     private tiles: Map<string, Tile> = new Map();
+    private messageLog: GameMessage[] = [];
 
     constructor(public readonly width: number, public readonly height: number) {
         this.generateTerrain();
@@ -146,5 +148,17 @@ export class World {
     loadState(state: GameState) {
         this.entities = new Map(state.entities);
         this.grid = new Map(state.grid);
+    }
+
+    addMessage(message: GameMessage) {
+        this.messageLog.push(message);
+        // Optionally limit log size
+        if (this.messageLog.length > 100) {
+            this.messageLog.shift();
+        }
+    }
+
+    getMessageLog(): GameMessage[] {
+        return [...this.messageLog];
     }
 } 

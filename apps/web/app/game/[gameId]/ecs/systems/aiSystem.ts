@@ -131,23 +131,43 @@ export function aiSystem(world: World, currentTime: number) {
                     ai.personality || "A friendly NPC",
                     ai.processingMessage.message
                 ).then(response => {
+                    // Log the message
+                    world.addMessage({
+                        entityId: entity.id,
+                        entityType: 'npc',
+                        message: response.message,
+                        timestamp: currentTime,
+                        position: { ...position }
+                    });
+
                     // Show response
                     entity.components.speech = {
                         message: response.message,
-                        expiryTime: currentTime + 3000
+                        expiryTime: currentTime + 3000,
+                        isThinking: true,
+                        isChangingDirection: !!response.destinationChange
                     };
 
                     // Update destination if needed
                     if (response.destinationChange) {
-                        pathfinding.targetPosition = response.destinationChange;
-                        const path = pathfinder?.findPath(
-                            position,
-                            response.destinationChange
-                        );
-                        if (path) {
-                            pathfinding.currentPath = path;
-                            pathfinding.pathIndex = 0;
+                        const newDestination = response.destinationChange; // Temporary variable to handle null
+                        if (newDestination) { // Check if not null
+                            pathfinding.targetPosition = newDestination;
+                            const path = pathfinder?.findPath(
+                                position,
+                                newDestination // Use the temporary variable
+                            );
+                            if (path) {
+                                pathfinding.currentPath = path;
+                                pathfinding.pathIndex = 0;
+                            }
                         }
+                    } else {
+                        // If not changing direction, immediately show message
+                        entity.components.speech = {
+                            message: response.message,
+                            expiryTime: currentTime + 3000
+                        };
                     }
                 });
 
@@ -205,9 +225,18 @@ export function aiSystem(world: World, currentTime: number) {
                     // Only generate message if we don't already have one
                     if (!entity.components.speech) {
                         generateMessage().then(message => {
+                            // Log the arrival message
+                            world.addMessage({
+                                entityId: entity.id,
+                                entityType: 'npc',
+                                message: message,
+                                timestamp: currentTime,
+                                position: { ...position }
+                            });
+
                             entity.components.speech = {
                                 message,
-                                expiryTime: currentTime + 3000, // Show message for 3 seconds
+                                expiryTime: currentTime + 3000,
                             };
                         });
                     }

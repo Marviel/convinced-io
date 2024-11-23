@@ -148,7 +148,7 @@ export function renderSystem(world: World, context: RenderContext) {
             if (path.length > 0) {
                 // Draw connecting lines with gradient
                 ctx.beginPath();
-                ctx.strokeStyle = appearance.color || '#ff0000';
+                ctx.strokeStyle = appearance.color || '#ffffff';
                 ctx.lineWidth = 2;
                 ctx.globalAlpha = 0.3;
 
@@ -171,7 +171,7 @@ export function renderSystem(world: World, context: RenderContext) {
                     const pathY = (point.y - mapSize / 2) * tileSize + tileSize / 2;
                     ctx.beginPath();
                     ctx.arc(pathX, pathY, 2, 0, Math.PI * 2);
-                    ctx.fillStyle = appearance.color || '#ff0000';
+                    ctx.fillStyle = appearance.color || '#ffffff';
                     ctx.globalAlpha = 0.5;
                     ctx.fill();
                 });
@@ -184,7 +184,7 @@ export function renderSystem(world: World, context: RenderContext) {
             const targetX = (pathfinding.targetPosition.x - mapSize / 2) * tileSize + tileSize / 2;
             const targetY = (pathfinding.targetPosition.y - mapSize / 2) * tileSize + tileSize / 2;
 
-            ctx.fillStyle = appearance.color || '#ff0000';
+            ctx.fillStyle = appearance.color || '#ffffff';
             drawStar(ctx, targetX, targetY, tileSize / 2, 0.5);
         }
 
@@ -254,7 +254,7 @@ export function renderSystem(world: World, context: RenderContext) {
             const frameNum = appearance.isMoving ? '2' : '1';
             const direction = appearance.direction || 'fr';
             const spriteName = `${appearance.sprite}_${direction}${frameNum}`;
-            
+
             // Try to get sprite from cache
             const sprite = spriteCache.get(spriteName);
             if (sprite) {
@@ -268,7 +268,7 @@ export function renderSystem(world: World, context: RenderContext) {
             } else {
                 // Load sprite if not in cache
                 loadSprite(spriteName)
-                    .then(() => {/* Sprite will be drawn in next frame */})
+                    .then(() => {/* Sprite will be drawn in next frame */ })
                     .catch(() => {
                         // Fallback to color if sprite loading fails
                         ctx.fillStyle = appearance.color || '#ff0000';
@@ -300,12 +300,13 @@ export function renderSystem(world: World, context: RenderContext) {
             // Special handling for thinking indicator
             if (speech.isThinking) {
                 const size = tileSize / 2;
-                ctx.fillStyle = 'yellow';
+                // Change color based on whether direction is changing
+                ctx.fillStyle = speech.isChangingDirection ? 'red' : 'yellow';
                 ctx.beginPath();
                 ctx.arc(x, y - tileSize - size, size, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.fillStyle = 'black';
-                ctx.font = 'bold ${size}px Arial';
+                ctx.fillStyle = 'white';  // Make the ! white for better contrast
+                ctx.font = `bold ${size}px Arial`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText('!', x, y - tileSize - size);

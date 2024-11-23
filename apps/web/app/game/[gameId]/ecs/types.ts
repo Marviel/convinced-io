@@ -52,12 +52,21 @@ export interface Speech {
     message: string;
     expiryTime: number;
     isThinking?: boolean;
+    isChangingDirection?: boolean;
 }
 
 export interface PathfindingComponent {
     targetPosition?: { x: number; y: number };
     currentPath?: { x: number; y: number }[];
     pathIndex?: number;
+}
+
+export interface GameMessage {
+    entityId: string;
+    entityType: 'player' | 'npc';
+    message: string;
+    timestamp: number;
+    position: { x: number; y: number };
 }
 
 export type ComponentTypes = {

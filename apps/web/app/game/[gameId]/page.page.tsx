@@ -9,7 +9,7 @@ import {
 import { Button } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
-import { SpeechBubble } from './components/SpeechBubble';
+import { ChatHistory } from './components/ChatHistory';
 import {
     aiSystem,
     interactionSystem,
@@ -19,7 +19,10 @@ import {
     renderSystem,
     speechSystem,
 } from './ecs/systems';
-import { Entity } from './ecs/types';
+import {
+    Entity,
+    GameMessage,
+} from './ecs/types';
 import { World } from './ecs/World';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { NetworkManager } from './network/NetworkManager';
@@ -37,12 +40,20 @@ const GameContainer = styled('div')({
     overflow: 'hidden',
     backgroundColor: '#000',
     display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
+});
+
+const GameArea = styled('div')({
+    position: 'relative',
+    height: '100%',
+    aspectRatio: '1 / 1',
+    margin: 'auto',
 });
 
 const GameCanvas = styled('canvas')({
-    position: 'relative',
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
     imageRendering: 'pixelated',
 });
 
@@ -60,6 +71,7 @@ export default function GameRoom() {
     const [initialized, setInitialized] = useState(false);
     const networkManager = useRef<NetworkManager>();
     const [generatedMessage, setGeneratedMessage] = useState<GeneratedMessage | null>(null);
+    const [messages, setMessages] = useState<GameMessage[]>([]);
 
     // Initialize world
     useEffect(() => {
@@ -100,7 +112,7 @@ export default function GameRoom() {
                         type: 'structure',
                         components: {
                             position: { x, y },
-                            appearance: { 
+                            appearance: {
                                 structure: true,
                                 structureNumber: 1 + Math.floor(Math.random() * 8)
                             },
@@ -233,46 +245,26 @@ export default function GameRoom() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Add this function
-    // const handleGenerate = async () => {
-    //     try {
-    //         const response = await fetch('/api/genObject', {
-    //             method: 'POST',
-    //             headers: {
-    //                 'Content-Type': 'application/json',
-    //             },
-    //             body: JSON.stringify({
-    //                 schema: {
-    //                     type: 'object',
-    //                     properties: {
-    //                         message: { type: 'string' },
-    //                     },
-    //                     required: ['message'],
-    //                 },
-    //                 prompt: "Generate a short, funny message for a game character to say.",
-    //             }),
-    //         });
-
-    //         const result = await response.json();
-    //         console.log(result);
-
-    //         // Add speech component to player
-    //         if (playerRef.current) {
-    //             playerRef.current.components.speech = {
-    //                 message: result.message,
-    //                 expiryTime: performance.now() + 5000, // 5 seconds from now
-    //             };
-    //         }
-    //     } catch (error) {
-    //         console.error('Error generating message:', error);
-    //     }
-    // };
-
     const handlePlayerSpeak = async (message: string) => {
         const player = playerRef.current;
         if (!player?.components.position || !player.components.interactable) return;
 
-        // Get all NPCs in range
+        // Log player message
+        worldRef.current.addMessage({
+            entityId: player.id,
+            entityType: 'player',
+            message: message,
+            timestamp: performance.now(),
+            position: { ...player.components.position }
+        });
+
+        // Show player's message
+        player.components.speech = {
+            message,
+            expiryTime: performance.now() + 3000
+        };
+
+        // Get NPCs in range
         const npcsInRange = worldRef.current.getAllEntities().filter(entity => {
             if (entity.type !== 'npc') return false;
 
@@ -289,6 +281,20 @@ export default function GameRoom() {
         // Make them process the message
         for (const npc of npcsInRange) {
             if (npc.components.ai) {
+                // Stop the NPC
+                if (npc.components.movement) {
+                    npc.components.movement.dx = 0;
+                    npc.components.movement.dy = 0;
+                }
+
+                // Show thinking indicator
+                npc.components.speech = {
+                    message: "!",
+                    expiryTime: performance.now() + 3000,
+                    isThinking: true
+                };
+
+                // Set processing state
                 npc.components.ai.processingMessage = {
                     message,
                     fromEntity: player.id,
@@ -296,12 +302,6 @@ export default function GameRoom() {
                 };
             }
         }
-
-        // Show player's message
-        player.components.speech = {
-            message,
-            expiryTime: performance.now() + 3000
-        };
     };
 
     // Update handleGenerate to use this
@@ -320,7 +320,7 @@ export default function GameRoom() {
                         },
                         required: ['message'],
                     },
-                    prompt: "Generate a short, funny message for a game character to say.",
+                    prompt: "Generate a funny message that tries to convince nearby NPCs to go in one of the four cardinal directions.",
                 }),
             });
 
@@ -331,33 +331,37 @@ export default function GameRoom() {
         }
     };
 
+    // Update message log periodically
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (worldRef.current) {
+                setMessages(worldRef.current.getMessageLog());
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
+
     // Update the render function to include button and speech bubble
     return (
         <GameContainer>
-            <GameCanvas ref={canvasRef} />
-
-            {/* Add Generate Button */}
-            <Button
-                variant="contained"
-                onClick={handleGenerate}
-                sx={{
-                    position: 'fixed',
-                    bottom: 20,
-                    right: 20,
-                    zIndex: 1000,
-                }}
-            >
-                Generate Message
-            </Button>
-
-            {/* Add Speech Bubble */}
-            {generatedMessage && playerRef.current?.components.position && (
-                <SpeechBubble
-                    text={generatedMessage.message}
-                    x={window.innerWidth / 2}
-                    y={window.innerHeight / 2 - 50}
-                />
-            )}
+            <GameArea>
+                <GameCanvas ref={canvasRef} />
+                <Button
+                    variant="contained"
+                    onClick={handleGenerate}
+                    sx={{
+                        position: 'absolute',
+                        bottom: 20,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        zIndex: 1000,
+                    }}
+                >
+                    Generate Message
+                </Button>
+            </GameArea>
+            <ChatHistory messages={messages} />
         </GameContainer>
     );
 }

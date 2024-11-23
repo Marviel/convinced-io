@@ -151,3 +151,11 @@ CREATE INDEX idx_npcs_game_room ON npcs(game_room_id);
 GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
+
+-- RPCs
+CREATE OR REPLACE FUNCTION decrement_current_players(game_room_id text)
+RETURNS INTEGER AS $$
+BEGIN
+    RETURN current_players - 1;
+END;
+$$ LANGUAGE plpgsql;

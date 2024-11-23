@@ -14,7 +14,10 @@ export interface Movement {
 }
 
 export interface Appearance {
-    color: string;
+    color?: string;
+    sprite?: string;
+    direction?: 'fr' | 'bk' | 'lf' | 'rt';
+    isMoving?: boolean;
     highlighted?: boolean;
 }
 

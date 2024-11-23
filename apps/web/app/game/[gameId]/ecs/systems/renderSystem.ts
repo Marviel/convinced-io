@@ -1,5 +1,23 @@
 import { World } from '../World';
 
+const spriteCache = new Map<string, HTMLImageElement>();
+
+async function loadSprite(spriteName: string): Promise<HTMLImageElement> {
+    if (spriteCache.has(spriteName)) {
+        return spriteCache.get(spriteName)!;
+    }
+
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            spriteCache.set(spriteName, img);
+            resolve(img);
+        };
+        img.onerror = reject;
+        img.src = `assets/sprites/${spriteName}.gif`;
+    });
+}
+
 export interface RenderContext {
     ctx: CanvasRenderingContext2D;
     width: number;
@@ -57,7 +75,7 @@ export function renderSystem(world: World, context: RenderContext) {
         }
     }
 
-    // First, draw the interaction radius for the player
+    // Draw player interaction radius
     const player = world.getAllEntities().find(e => e.type === 'player');
     if (player?.components.position && player.components.interactable) {
         const pos = player.components.position;
@@ -81,8 +99,8 @@ export function renderSystem(world: World, context: RenderContext) {
         const pathfinding = entity.components.pathfinding;
         if (!pos || !appearance) continue;
 
-        const x = (pos.x - mapSize / 2) * tileSize + tileSize / 2;
-        const y = (pos.y - mapSize / 2) * tileSize + tileSize / 2;
+        const x = (pos.x - mapSize / 2) * tileSize;
+        const y = (pos.y - mapSize / 2) * tileSize;
 
         // Draw path for NPCs
         if (entity.type === 'npc' && pathfinding?.currentPath && pathfinding.pathIndex !== undefined) {
@@ -135,8 +153,8 @@ export function renderSystem(world: World, context: RenderContext) {
         if (entity.type === 'npc' && appearance.highlighted) {
             ctx.beginPath();
             ctx.rect(
-                x - tileSize / 2 - 2,
-                y - tileSize / 2 - 2,
+                x - 2,
+                y - 2,
                 tileSize + 4,
                 tileSize + 4
             );
@@ -145,22 +163,30 @@ export function renderSystem(world: World, context: RenderContext) {
             ctx.stroke();
         }
 
-        // Set the fill color
-        ctx.fillStyle = appearance.color;
-
-        if (entity.type === 'player') {
-            // Draw circle for players
-            ctx.beginPath();
-            ctx.arc(x, y, tileSize / 2 - 1, 0, Math.PI * 2);
-            ctx.fill();
+        if (appearance.sprite) {
+            // Construct sprite name
+            const frameNum = appearance.isMoving ? '2' : '1';
+            const direction = appearance.direction || 'fr';
+            const spriteName = `${appearance.sprite}_${direction}${frameNum}`;
+            
+            // Try to get sprite from cache
+            const sprite = spriteCache.get(spriteName);
+            if (sprite) {
+                ctx.drawImage(sprite, x, y, tileSize, tileSize);
+            } else {
+                // Load sprite if not in cache
+                loadSprite(spriteName)
+                    .then(() => {/* Sprite will be drawn in next frame */})
+                    .catch(() => {
+                        // Fallback to color if sprite loading fails
+                        ctx.fillStyle = appearance.color || '#ff0000';
+                        ctx.fillRect(x, y, tileSize - 1, tileSize - 1);
+                    });
+            }
         } else {
-            // Draw squares for other entities
-            ctx.fillRect(
-                x - tileSize / 2,
-                y - tileSize / 2,
-                tileSize - 1,
-                tileSize - 1
-            );
+            // Fallback to color rendering
+            ctx.fillStyle = appearance.color || '#ff0000';
+            ctx.fillRect(x, y, tileSize - 1, tileSize - 1);
         }
     }
 

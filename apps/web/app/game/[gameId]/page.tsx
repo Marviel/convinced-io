@@ -26,6 +26,7 @@ const TILE_SIZE = 32;
 const MAP_SIZE = 50;
 const NUM_NPCS = 20;
 const INTERACTION_RADIUS = 5; // 5 tiles radius
+const AVAILABLE_SPRITES = ['nja1', 'nja2', 'mst1', 'mst2']; // Add your actual sprite names
 
 const GameContainer = styled('div')({
     width: '100vw',
@@ -68,12 +69,17 @@ export default function GameRoom() {
             type: 'player',
             components: {
                 position: { x: 25, y: 25 },
-                appearance: { color: '#0077be' },
+                appearance: {
+                    color: '#0077be', // Fallback color
+                    sprite: AVAILABLE_SPRITES[Math.floor(Math.random() * AVAILABLE_SPRITES.length)],
+                    direction: 'fr',
+                    isMoving: false
+                },
                 movement: {
                     dx: 0,
                     dy: 0,
                     speed: 1,
-                    moveInterval: 100  // Can move every 100ms (10 times per second)
+                    moveInterval: 100
                 },
                 collision: { solid: true },
                 interactable: { radius: INTERACTION_RADIUS },
@@ -115,7 +121,12 @@ export default function GameRoom() {
                 type: 'npc',
                 components: {
                     position: { x, y },
-                    appearance: { color: `hsl(${Math.random() * 360}, 70%, 50%)` },
+                    appearance: {
+                        color: `hsl(${Math.random() * 360}, 70%, 50%)`, // Fallback color
+                        sprite: AVAILABLE_SPRITES[Math.floor(Math.random() * AVAILABLE_SPRITES.length)],
+                        direction: ['fr', 'bk', 'lf', 'rt'][Math.floor(Math.random() * 4)] as 'fr' | 'bk' | 'lf' | 'rt',
+                        isMoving: false
+                    },
                     movement: {
                         dx: 0,
                         dy: 0,
@@ -124,7 +135,7 @@ export default function GameRoom() {
                     },
                     collision: { solid: true },
                     ai: { type: 'random', nextMoveTime: 0 },
-                    pathfinding: {}
+                    pathfinding
                 },
             };
             world.addEntity(npc);

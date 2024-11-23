@@ -120,10 +120,11 @@ export default function GameRoom() {
                         dx: 0,
                         dy: 0,
                         speed: 1,
-                        moveInterval: 500  // Can move every 500ms (2 times per second)
+                        moveInterval: 500
                     },
                     collision: { solid: true },
                     ai: { type: 'random', nextMoveTime: 0 },
+                    pathfinding: {}
                 },
             };
             world.addEntity(npc);

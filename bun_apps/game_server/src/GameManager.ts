@@ -1,3 +1,4 @@
+import { moveAction } from './actions';
 import { SupabaseManager } from './SupabaseManager';
 import { systems } from './systems';
 import type {
@@ -13,11 +14,16 @@ interface GameInstance {
     connections: Array<{ playerId: string }>;
 }
 
+const GAME_WIDTH = 25;
+const GAME_HEIGHT = 25;
+const GAME_FPS = 30;
+
 export class GameManager {
     private games: Map<string, GameInstance> = new Map();
     private readonly INACTIVE_TIMEOUT = 5 * 60 * 1000; // 5 minutes in ms
     private readonly AUTOSAVE_INTERVAL = 60 * 1000; // 1 minute in ms
     private supabaseManager: SupabaseManager;
+    private actionQueue: Array<Action> = [];
 
     constructor() {
         this.supabaseManager = new SupabaseManager(this);
@@ -28,7 +34,7 @@ export class GameManager {
     }
 
     async createGame(gameId: string): Promise<World> {
-        const world = new World(50, 50);
+        const world = new World(GAME_WIDTH, GAME_HEIGHT);
         await world.initialize();
         const gameLoopInterval = this.startGameLoop(gameId, world);
 
@@ -43,9 +49,7 @@ export class GameManager {
         return world;
     }
 
-
     processAction(gameId: string, action: Action) {
-        console.log(`gameId: ${gameId} processing action ${JSON.stringify(action)}`);
         const game = this.games.get(gameId);
         if (!game) return;
 
@@ -53,13 +57,12 @@ export class GameManager {
 
         // If we haven't seen this player yet, create them
         if (!game.connections.find(c => c.playerId === action.playerId)) {
-            console.log(`gameId: ${gameId} creating player ${action.playerId}`);
             this.handleUserJoin(gameId, action.playerId);
         }
 
         switch (action.type) {
             case 'MOVE':
-                systems.moveSystem(game.world, action);
+                moveAction(game.world, action);
                 break;
             case 'CHAT':
                 this.processChatAction(game.world, action);
@@ -98,27 +101,24 @@ export class GameManager {
             const game = this.games.get(gameId);
             if (!game) return;
 
+            // Bookkeeping
             const currentTime = performance.now();
-
-            // Track if state changed
             const oldState = this.worldToGameState(world);
+            world.resetPathObstacles();
+            world.updatePathObstacles();
 
             // Run systems
             systems.aiSystem(world, currentTime);
             systems.interactionSystem(world);
             systems.speechSystem(world, currentTime);
 
-            // Only broadcast if state actually changed
+            // Broadcast if state changed
             const newState = this.worldToGameState(world);
             if (JSON.stringify(oldState) !== JSON.stringify(newState)) {
                 console.log('State changed');
                 this.broadcastGameState(gameId);
             }
-            else {
-                // console.log('State did not change');
-            }
-
-        }, 1000 / 60) as unknown as number; // Run at 10 FPS instead of 60
+        }, 1000 / GAME_FPS) as unknown as number;
     }
 
     private async autosaveGames() {
@@ -143,7 +143,7 @@ export class GameManager {
     private cleanupInactiveGames() {
         const now = Date.now();
         for (const [gameId, game] of this.games.entries()) {
-            if (game.connections.size === 0 &&
+            if (game.connections.length === 0 &&
                 now - game.lastActiveTime > this.INACTIVE_TIMEOUT) {
                 // Save one last time before cleanup
                 this.saveGameState(gameId, game.world)
@@ -165,7 +165,8 @@ export class GameManager {
             entities: Array.from(world.getAllEntities()).map(entity => [entity.id, entity]),
             grid: Array.from(world.getGrid()),
             timestamp: Date.now(),
-            messages: world.getMessageLog()
+            messages: world.getMessageLog(),
+            mapDims: [GAME_WIDTH, GAME_HEIGHT]
         };
     }
 
@@ -179,7 +180,7 @@ export class GameManager {
     private processChatAction(world: World, action: Action) {
         console.log(`Processing chat action: ${action.payload.message}`);
         // Find the speaking player
-        const player = world.getAllEntities().find(e => e.id === 'player');
+        const player = world.getAllEntities().find(e => e.id === action.playerId);
         if (!player?.components.position || !player.components.interactable) return;
 
         const playerPos = player.components.position;

@@ -19,6 +19,12 @@ export class Pathfinder {
         }
     }
 
+    resetObstacles() {
+        this.adjacencyMatrix = Array(this.height).fill(0).map(() =>
+            Array(this.width).fill(true)
+        );
+    }
+
     findPath(start: Point, goal: Point, ignoredPoints: Point[] = []): Path | null {
         const openSet = new Set<string>();
         const cameFrom = new Map<string, Point>();

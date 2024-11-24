@@ -2,6 +2,7 @@ import type {
     Entity,
     Position,
 } from './types';
+import { Pathfinder } from './utils/Pathfinder';
 
 interface Tile {
     baseLayer: number;  // Grass tile number
@@ -9,7 +10,8 @@ interface Tile {
 }
 
 const AVAILABLE_SPRITES = ['mnt1', 'wmn3', 'amg2', 'man4', 'wmg3', 'npc1', 'bmg1', 'nja3', 'dvl1', 'npc3', 'scr1', 'pdn4', 'pdn2', 'nja1', 'ftr2', 'knt4', 'ygr1', 'wnv3', 'thf3', 'wnv2'];
-const NUM_NPCS = 5;
+const NUM_NPCS = 10;
+const OBSTACLE_LIKELIHOOD = .1;
 
 export class World {
     private entities: Map<string, Entity> = new Map();
@@ -22,11 +24,13 @@ export class World {
         timestamp: number;
         position: Position;
     }> = [];
+    private pathfinder: Pathfinder;
 
     constructor(
         public readonly width: number,
         public readonly height: number
     ) {
+        this.pathfinder = new Pathfinder(width, height);
     }
 
     async initialize() {
@@ -40,6 +44,25 @@ export class World {
 
         // Create structures
         this.createInitialStructures();
+    }
+
+    public findPath(start: Position, end: Position) {
+        return this.pathfinder.findPath(start, end);
+    }
+
+    public resetPathObstacles() {
+        this.pathfinder.resetObstacles();
+    }
+
+    public updatePathObstacles() {
+        for (const entity of this.getAllEntities()) {
+            if (entity.components.collision?.solid) {
+                const pos = entity.components.position;
+                if (pos) {
+                    this.pathfinder.updateObstacle(pos.x, pos.y, true);
+                }
+            }
+        }
     }
 
     /**
@@ -126,7 +149,7 @@ export class World {
                         speed: 1,
                         moveInterval: 500
                     },
-                    collision: { solid: true },
+                    // collision: { solid: true },
                     ai: {
                         type: 'random',
                         nextMoveTime: 0,
@@ -142,11 +165,9 @@ export class World {
     }
 
     private createInitialStructures() {
-
-
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
-                if (Math.random() < 0.1 && !this.isPositionOccupied(x, y)) {
+                if (Math.random() < OBSTACLE_LIKELIHOOD && !this.isPositionOccupied(x, y)) {
                     const structure: Entity = {
                         id: `structure-${x}-${y}`,
                         type: 'structure',
@@ -155,22 +176,6 @@ export class World {
                             appearance: {
                                 structure: true,
                                 structureNumber: 1 + Math.floor(Math.random() * 8)
-                            },
-                            collision: { solid: true }
-                        }
-                    };
-                    this.addEntity(structure);
-                }
-
-                if (x === 0 && y === 0) {
-                    const structure: Entity = {
-                        id: `structure-${x}-${y}`,
-                        type: 'structure',
-                        components: {
-                            position: { x, y },
-                            appearance: {
-                                structure: true,
-                                structureNumber: 30
                             },
                             collision: { solid: true }
                         }
@@ -240,22 +245,27 @@ export class World {
         if (!occupyingEntityId) return false;
 
         const entity = this.entities.get(occupyingEntityId);
+
         return entity?.components.collision?.solid ?? false;
     }
 
     moveEntity(entityId: string, newX: number, newY: number): boolean {
         const entity = this.entities.get(entityId);
+
         if (!entity?.components.position) return false;
+
 
         // Check bounds
         if (newX < 0 || newX >= this.width || newY < 0 || newY >= this.height) {
             return false;
         }
 
+
         // Check collisions
         if (this.isPositionOccupied(newX, newY)) {
             return false;
         }
+
 
         // Update position
         const oldPos = entity.components.position;

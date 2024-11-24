@@ -57,21 +57,13 @@ const server = Bun.serve<ConnectionData>({
     },
     websocket: {
         open(ws: GameServerWebSocket) {
-            gameManager.joinGame(ws.data.gameId, ws);
+            //gameManager.joinGame(ws.data.gameId, ws);
         },
         close(ws: GameServerWebSocket) {
-            gameManager.leaveGame(ws.data.gameId, ws);
+            //gameManager.leaveGame(ws.data.gameId, ws);
         },
         message(ws: GameServerWebSocket, message: string | Buffer) {
-            try {
-                const data = JSON.parse(message as string) as ActionMessage;
-
-                if (data.type === 'ACTION') {
-                    gameManager.processAction(ws.data.gameId, data.action);
-                }
-            } catch (error) {
-                console.error('Error processing message:', error);
-            }
+            //
         },
     },
 });

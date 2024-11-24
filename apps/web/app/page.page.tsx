@@ -494,7 +494,10 @@ export default function Home() {
   return (
     <StyledContainer>
       <Typography variant="h2" component="h1" gutterBottom sx={{ color: '#fff' }}>
-        Welcome to Convinced.io
+        Convinced.io
+      </Typography>
+      <Typography variant="h5" gutterBottom sx={{ color: '#fff' }}>
+        A multiplayer game of persuasion
       </Typography>
 
       <StyledPaper elevation={3}>

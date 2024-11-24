@@ -16,6 +16,7 @@ export interface GameState {
     grid: [string, string][];
     timestamp: number;
     messages: GameMessage[];
+    mapDims: [number, number];
 }
 
 export interface MovePayload {

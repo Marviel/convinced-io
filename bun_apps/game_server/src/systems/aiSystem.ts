@@ -68,12 +68,22 @@ export function aiSystem(world: World, currentTime: number) {
             movement.dx = 0;
             movement.dy = 0;
 
+            // TODO: bring back message processing.
             processMessage(
                 ai.personality || "A friendly NPC",
                 ai.processingMessage.message,
                 pos,
                 world.width
             ).then(response => {
+                console.log('response', response);
+                // Show thinking indicator
+                entity.components.speech = {
+                    message: response.message,
+                    expiryTime: currentTime + 3000,
+                    isThinking: true,
+                    thinkingState: response.destinationChange ? 'changed' : 'notChanged'
+                };
+
                 // Add response to message log
                 world.addMessage({
                     entityId: entity.id,
@@ -103,43 +113,118 @@ export function aiSystem(world: World, currentTime: number) {
                 const targetX = Math.floor(Math.random() * world.width);
                 const targetY = Math.floor(Math.random() * world.height);
 
-                if (!world.isPositionOccupied(targetX, targetY)) {
+                // Check if we can path to this position
+                const path = world.findPath(
+                    {
+                        x: pos.x,
+                        y: pos.y
+                    },
+                    {
+                        x: targetX,
+                        y: targetY
+                    }
+                );
+
+                if (path && path.length > 0) {
                     pathfinding.targetPosition = { x: targetX, y: targetY };
+                    pathfinding.currentPath = path;
                     break;
                 }
                 attempts++;
             } while (attempts < 10);
         }
 
-        // Move towards target if we have one
-        if (pathfinding.targetPosition) {
-            const dx = Math.sign(pathfinding.targetPosition.x - pos.x);
-            const dy = Math.sign(pathfinding.targetPosition.y - pos.y);
+        // Move along path if we have one
+        if (pathfinding.currentPath && pathfinding.currentPath.length > 0) {
+            const nextPoint = pathfinding.currentPath[0];
+
+            // Calculate direction to next point
+            const dx = Math.sign(nextPoint.x - pos.x);
+            const dy = Math.sign(nextPoint.y - pos.y);
 
             movement.dx = dx;
             movement.dy = dy;
 
-            // Check if reached target
-            if (pos.x === pathfinding.targetPosition.x &&
-                pos.y === pathfinding.targetPosition.y) {
+            // If we've reached the next point, remove it from the path
+            if (pos.x === nextPoint.x && pos.y === nextPoint.y) {
+                pathfinding.currentPath.shift();
 
+                // If path is empty and we're at target, clear target
+                if (pathfinding.currentPath.length === 0 &&
+                    pos.x === pathfinding.targetPosition?.x &&
+                    pos.y === pathfinding.targetPosition?.y) {
+
+                    pathfinding.targetPosition = undefined;
+                    movement.dx = 0;
+                    movement.dy = 0;
+
+                    // Generate arrival message
+                    // generateMessage().then(message => {
+                    //     world.addMessage({
+                    //         entityId: entity.id,
+                    //         entityType: 'npc',
+                    //         message,
+                    //         timestamp: currentTime,
+                    //         position: pos
+                    //     });
+                    // });
+                }
+            }
+        } else if (pathfinding.targetPosition) {
+            // Recalculate path if we have a target but no path
+            const path = world.findPath(
+                {
+                    x: pos.x,
+                    y: pos.y
+                },
+                {
+                    x: pathfinding.targetPosition.x,
+                    y: pathfinding.targetPosition.y
+                }
+            );
+
+            if (path && path.length > 0) {
+                pathfinding.currentPath = path;
+            } else {
+                // If we can't path to target, clear it
                 pathfinding.targetPosition = undefined;
                 movement.dx = 0;
                 movement.dy = 0;
-
-                // Generate arrival message
-                generateMessage().then(message => {
-                    world.addMessage({
-                        entityId: entity.id,
-                        entityType: 'npc',
-                        message,
-                        timestamp: currentTime,
-                        position: pos
-                    });
-                });
             }
         }
 
-        ai.nextMoveTime = currentTime + 200;
+
+        // Only run if it's been 
+        if (movement.lastMoveTime &&
+            currentTime - movement.lastMoveTime < movement.moveInterval) {
+            continue;
+        }
+
+
+        // Calculate new position
+        const newX = pos.x + movement.dx;
+        const newY = pos.y + movement.dy;
+
+        if (movement.dx === 0 && movement.dy === 0) continue;
+
+        // Try to move
+        const moved = world.moveEntity(entity.id, newX, newY);
+
+        if (moved) {
+            movement.lastMoveTime = currentTime;
+
+            // Update appearance if it exists
+            if (entity.components.appearance) {
+                if (movement.dx > 0) entity.components.appearance.direction = 'rt';
+                else if (movement.dx < 0) entity.components.appearance.direction = 'lf';
+                else if (movement.dy > 0) entity.components.appearance.direction = 'fr';
+                else if (movement.dy < 0) entity.components.appearance.direction = 'bk';
+
+                entity.components.appearance.isMoving = movement.dx !== 0 || movement.dy !== 0;
+            }
+        } else {
+            // If we couldn't move, recalculate path
+            pathfinding.currentPath = undefined;
+        }
     }
 } 

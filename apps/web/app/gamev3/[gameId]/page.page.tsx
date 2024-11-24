@@ -20,7 +20,6 @@ import { renderSystem } from './renderSystem';
 import { gameToScreenPosition } from './utils/coordinates';
 
 const TILE_SIZE = 16;
-const MAP_SIZE = 50;
 
 const inputStyle: React.CSSProperties = {
     position: 'absolute',
@@ -48,6 +47,11 @@ const gameAreaStyle: React.CSSProperties = {
     position: 'relative'
 };
 
+// Add throttle time constant
+const ACTION_THROTTLE = 100; // ms between actions
+
+
+
 export default function GamePage() {
     const { supabase } = useSupabase();
     const params = useParams();
@@ -59,6 +63,12 @@ export default function GamePage() {
     const lastStateTimestampRef = useRef<number>(0);
     const needsRenderRef = useRef<boolean>(false);
     const animationFrameRef = useRef<number>();
+    // Add last action time ref
+    const lastActionTimeRef = useRef<number>(0);
+
+    const mapDims = useMemo(() => {
+        return gameState?.mapDims || [40, 40];
+    }, [gameState]);
 
     // TODO: replace with actual id
     const playerId = useMemo(() => {
@@ -101,12 +111,18 @@ export default function GamePage() {
         }
     }, [params?.gameId]);
 
-    // Modify the action sending functions
+    // Modify the action sending function with throttling
     const sendAction = useCallback((action: any) => {
         if (!playerActionsChannelRef.current) {
             console.error('No player actions channel found');
             return;
         }
+
+        const now = Date.now();
+        if (now - lastActionTimeRef.current < ACTION_THROTTLE) {
+            return; // Skip if too soon
+        }
+        lastActionTimeRef.current = now;
 
         console.log('Sending action', action);
 
@@ -203,8 +219,8 @@ export default function GamePage() {
             const size = Math.min(availableWidth, availableHeight) * 0.9;
 
             // Set the actual canvas size to match the map size in tiles
-            canvasRef.current.width = MAP_SIZE * TILE_SIZE;
-            canvasRef.current.height = MAP_SIZE * TILE_SIZE;
+            canvasRef.current.width = mapDims[0] * TILE_SIZE;
+            canvasRef.current.height = mapDims[1] * TILE_SIZE;
 
             // Scale the canvas display size while maintaining aspect ratio
             // canvasRef.current.style.width = `${size}px`;
@@ -241,7 +257,7 @@ export default function GamePage() {
                         canvasRef.current!.width,
                         canvasRef.current!.height,
                         TILE_SIZE,
-                        MAP_SIZE
+                        mapDims[0]
                     );
                     needsRenderRef.current = false; // Reset the flag
                 }
@@ -291,7 +307,7 @@ export default function GamePage() {
                         const { screenX, screenY } = gameToScreenPosition(
                             pos.x,
                             pos.y,
-                            MAP_SIZE,
+                            mapDims[0],
                             curCanvas.width,
                             canvasTop,
                             canvasLeft,

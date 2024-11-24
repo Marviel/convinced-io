@@ -1,7 +1,7 @@
 import type { Action } from '../types';
 import type { World } from '../World';
 
-export function moveSystem(world: World, action: Action) {
+export function moveAction(world: World, action: Action) {
     if (action.type !== 'MOVE') return;
 
     const entity = world.getEntity(action.playerId);
@@ -42,4 +42,4 @@ export function moveSystem(world: World, action: Action) {
             entity.components.appearance.isMoving = dx !== 0 || dy !== 0;
         }
     }
-} 
+}

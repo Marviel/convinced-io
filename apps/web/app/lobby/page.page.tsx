@@ -409,15 +409,10 @@ export default function Lobby() {
 
       // If user was not a spectator, decrease current_players count
       if (!currentUser?.is_spectator) {
-        const { error: updateError } = await supabase
-          .from('game_rooms')
-          .update({ 
-            current_players: supabase.rpc('decrement_current_players', { game_room_id: gameId })
-          })
-          .eq('id', gameId)
-
+        const { error: updateError } = await supabase.rpc('decrement_current_players', { game_room_id: gameId });
         if (updateError) {
           console.error('Error updating player count:', updateError)
+          return
         }
       }
 
@@ -476,13 +471,7 @@ export default function Lobby() {
       // Update player count if not a spectator
       const kickedPlayer = players.find(p => p.id === userId)
       if (kickedPlayer && !kickedPlayer.is_spectator) {
-        const { error: updateError } = await supabase
-          .from('game_rooms')
-          .update({ 
-            current_players: supabase.rpc('decrement_current_players', { game_room_id: gameId })
-          })
-          .eq('id', gameId)
-
+        const { error: updateError } = await supabase.rpc('decrement_current_players', { game_room_id: gameId });
         if (updateError) {
           console.error('Error updating player count:', updateError)
         }
@@ -708,7 +697,7 @@ export default function Lobby() {
 
                 {/* Spectators Section */}
                 {players.some(player => player.is_spectator) && (
-                  <>
+                  <React.Fragment key="spectators-section">
                     <Typography component="span" variant="h6" sx={{ mt: 3, mb: 1, color: '#666' }}>
                       Spectators
                     </Typography>
@@ -760,7 +749,7 @@ export default function Lobby() {
                           )}
                         </ListItem>
                       ))}
-                  </>
+                  </React.Fragment>
                 )}
               </>
             )}

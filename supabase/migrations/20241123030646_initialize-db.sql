@@ -156,8 +156,10 @@ GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
 
 -- RPCs
 CREATE OR REPLACE FUNCTION decrement_current_players(game_room_id text)
-RETURNS INTEGER AS $$
+RETURNS void AS $$
 BEGIN
-    RETURN current_players - 1;
+    UPDATE game_rooms
+    SET current_players = current_players - 1
+    WHERE id = game_room_id AND current_players > 0;
 END;
 $$ LANGUAGE plpgsql;

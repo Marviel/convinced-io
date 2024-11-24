@@ -26,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className={`${geistSans.variable} ${geistMono.variable}`} style={{ width: '100vw', height: '100vh', backgroundColor: '#000000' }}>
         <SupabaseProvider>
           {children}
         </SupabaseProvider>

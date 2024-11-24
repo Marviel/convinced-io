@@ -1,30 +1,21 @@
 'use client';
 
-import React from 'react'
-import { 
-  Container, 
-  Typography, 
-  Button, 
-  Paper, 
-  Box,
-  TextField,
+import React from 'react';
+
+import { useRouter } from 'next/navigation';
+
+import {
+  Button,
+  Container,
   Dialog,
-  DialogTitle,
-  DialogContent,
   DialogActions,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  Avatar,
-  Chip,
-  ButtonGroup,
-} from '@mui/material'
-import { useRouter } from 'next/navigation'
-import { styled } from '@mui/material/styles'
-import AddIcon from '@mui/icons-material/Add'
-import GroupIcon from '@mui/icons-material/Group'
-import VisibilityIcon from '@mui/icons-material/Visibility'
+  DialogContent,
+  DialogTitle,
+  Paper,
+  TextField,
+  Typography,
+} from '@mui/material';
+import { styled } from '@mui/material/styles';
 
 import { useSupabase } from './client/SupabaseProvider';
 
@@ -102,8 +93,8 @@ const CreateGameDialog = ({ open, onClose, onSubmit }: CreateGameDialogProps) =>
   }, [onClose])
 
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onClose={handleClose}
       slotProps={{
         backdrop: {
@@ -136,13 +127,13 @@ const CreateGameDialog = ({ open, onClose, onSubmit }: CreateGameDialogProps) =>
         />
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        <Button 
+        <Button
           onClick={handleClose}
           sx={{ color: '#fff' }}
         >
           Cancel
         </Button>
-        <Button 
+        <Button
           onClick={handleSubmit}
           variant="contained"
           disabled={!gameName.trim() || !displayName.trim()}
@@ -177,8 +168,8 @@ const JoinGameDialog = ({ open, onClose, onSubmit }: JoinGameDialogProps) => {
   }, [onClose])
 
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onClose={handleClose}
       slotProps={{
         backdrop: {
@@ -211,13 +202,13 @@ const JoinGameDialog = ({ open, onClose, onSubmit }: JoinGameDialogProps) => {
         />
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        <Button 
+        <Button
           onClick={handleClose}
           sx={{ color: '#fff' }}
         >
           Cancel
         </Button>
-        <Button 
+        <Button
           onClick={handleSubmit}
           variant="contained"
           disabled={!gameId.trim() || !displayName.trim()}
@@ -428,8 +419,8 @@ export default function Home() {
       // 4. Update current_players count
       const { error: updateError } = await supabase
         .from('game_rooms')
-        .update({ 
-          current_players: gameRoom.current_players + 1 
+        .update({
+          current_players: gameRoom.current_players + 1
         })
         .eq('id', gameId)
 
@@ -494,8 +485,16 @@ export default function Home() {
       <Typography variant="h2" component="h1" gutterBottom sx={{ color: '#fff' }}>
         Welcome to Convinced.io
       </Typography>
+      <Typography variant="h5" gutterBottom sx={{ color: '#fff' }}>
+        A multiplayer game of persuasion
+      </Typography>
 
-      <StyledPaper elevation={3}>
+      <Typography variant="h5" gutterBottom sx={{ color: '#fff' }}>
+        Coming Soon!
+
+      </Typography>
+
+      {/* <StyledPaper elevation={3}>
         <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
           <Button
             variant="contained"
@@ -630,7 +629,7 @@ export default function Home() {
         open={joinDialogOpen}
         onClose={handleJoinDialogClose}
         onSubmit={handleJoinGame}
-      />
+      /> */}
     </StyledContainer>
   )
 }

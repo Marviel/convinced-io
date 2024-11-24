@@ -339,7 +339,7 @@ export default function GameRoom() {
                         },
                         required: ['message'],
                     },
-                    prompt: "Generate a funny message that tries to convince nearby NPCs to go in one of the four cardinal directions.",
+                    prompt: "Choose a cardinal direction. Write a funny, short, 1-sentence message to convince nearby NPCs to go in that direction.",
                 }),
             });
 

@@ -6,7 +6,10 @@ import {
     useState,
 } from 'react';
 
-import { Button } from '@mui/material';
+import {
+    Button,
+    TextField,
+} from '@mui/material';
 import { styled } from '@mui/material/styles';
 
 import { ChatHistory } from './components/ChatHistory';
@@ -70,6 +73,17 @@ const GameCanvas = styled('canvas')({
     imageRendering: 'pixelated',
 });
 
+const ChatInput = styled(TextField)({
+    position: 'absolute',
+    bottom: 80, // Position above the Generate Message button
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '300px',
+    '& .MuiInputBase-root': {
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    },
+});
+
 // Add this type
 interface GeneratedMessage {
     message: string;
@@ -85,6 +99,8 @@ export default function GameRoom() {
     const networkManager = useRef<NetworkManager>();
     const [generatedMessage, setGeneratedMessage] = useState<GeneratedMessage | null>(null);
     const [messages, setMessages] = useState<GameMessage[]>([]);
+    const [chatMessage, setChatMessage] = useState('');
+    const [inputFocused, setInputFocused] = useState(false);
 
     // Initialize world
     useEffect(() => {
@@ -182,7 +198,9 @@ export default function GameRoom() {
 
     // Modify keyboard controls to dispatch actions
     useKeyboardControls((action) => {
-        networkManager.current?.dispatchAction(action);
+        if (!inputFocused) {
+            networkManager.current?.dispatchAction(action);
+        }
     });
 
     // Game loop
@@ -361,12 +379,32 @@ export default function GameRoom() {
         return () => clearInterval(interval);
     }, []);
 
-    // Update the render function to include button and speech bubble
+    // Add this handler function near the other handlers
+    const handleChatSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' && chatMessage.trim()) {
+            handlePlayerSpeak(chatMessage.trim());
+            setChatMessage('');
+            (e.target as HTMLInputElement).blur();
+        }
+    };
+
+    // Update the return statement to include the chat input
     return (
         <GameContainer>
             <GameSection>
                 <GameArea>
                     <GameCanvas ref={canvasRef} />
+                    <ChatInput
+                        value={chatMessage}
+                        onChange={(e) => setChatMessage(e.target.value)}
+                        onKeyDown={handleChatSubmit}
+                        onFocus={() => setInputFocused(true)}
+                        onBlur={() => setInputFocused(false)}
+                        placeholder="Type to chat..."
+                        size="small"
+                        variant="outlined"
+                        autoComplete="off"
+                    />
                     <Button
                         variant="contained"
                         onClick={handleGenerate}
